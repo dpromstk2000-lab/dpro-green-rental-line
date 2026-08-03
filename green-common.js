@@ -4,7 +4,32 @@
   const config = window.GREEN_CONFIG;
   if (!config?.API_BASE) throw new Error("GREEN_CONFIG.API_BASE is required");
 
-  const state = { csrfToken: null };
+  const SESSION_TYPES = Object.freeze(["admin", "staff", "member"]);
+  const state = { csrfToken: null, sessionTokens: Object.create(null) };
+
+  function storageKey(type) {
+    return `green_${type}_session_token`;
+  }
+
+  function readSessionToken(type) {
+    try { return sessionStorage.getItem(storageKey(type)) || null; } catch { return null; }
+  }
+
+  function setSessionToken(type, value) {
+    if (!SESSION_TYPES.includes(type)) return;
+    state.sessionTokens[type] = value || null;
+    try {
+      if (value) sessionStorage.setItem(storageKey(type), value);
+      else sessionStorage.removeItem(storageKey(type));
+    } catch {}
+  }
+
+  function inferSessionType(path) {
+    const match = String(path || "").match(/^\/api\/(admin|staff|member)(?:\/|$)/);
+    return match ? match[1] : null;
+  }
+
+  for (const type of SESSION_TYPES) state.sessionTokens[type] = readSessionToken(type);
 
   function uuid() {
     return crypto.randomUUID ? crypto.randomUUID() : `green-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -14,6 +39,11 @@
     const headers = new Headers(options.headers || {});
     if (options.json !== undefined) headers.set("Content-Type", "application/json");
     if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey);
+    const sessionType = options.sessionType || inferSessionType(path);
+    const sessionToken = sessionType ? state.sessionTokens[sessionType] : null;
+    if (sessionToken && !headers.has("Authorization") && !String(path).endsWith("/login")) {
+      headers.set("Authorization", `Bearer ${sessionToken}`);
+    }
     if (state.csrfToken && !["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase())) {
       headers.set("X-CSRF-Token", state.csrfToken);
     }
@@ -25,12 +55,17 @@
     });
     const payload = await response.json().catch(() => ({ ok: false, error: "invalid_response", message: "API応答を読み取れませんでした。" }));
     if (!response.ok || payload.ok === false) {
+      if (sessionType && (response.status === 401 || String(path).endsWith("/logout"))) setSessionToken(sessionType, null);
       const error = new Error(payload.message || "処理に失敗しました。");
       error.code = payload.error || "request_failed";
       error.details = payload.details || payload.fields || null;
       error.requestId = payload.requestId || null;
       throw error;
     }
+    if (sessionType && String(path).endsWith("/login") && payload.data?.sessionToken) {
+      setSessionToken(sessionType, payload.data.sessionToken);
+    }
+    if (sessionType && String(path).endsWith("/logout")) setSessionToken(sessionType, null);
     return payload;
   }
 
@@ -126,6 +161,6 @@
   }
 
   window.Green = Object.freeze({
-    api, uploadPhoto, compressImage, setCsrfToken, uuid, formatDate, formatTime, statusLabel, toast, setBusy, renderError,
+    api, uploadPhoto, compressImage, setCsrfToken, setSessionToken, uuid, formatDate, formatTime, statusLabel, toast, setBusy, renderError,
   });
 })();
