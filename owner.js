@@ -5,6 +5,11 @@
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const Green = window.Green;
   const config = window.GREEN_CONFIG;
+  const query = new URLSearchParams(location.search);
+  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
+  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "features"]);
+  const requestedInitialView = query.get("view");
+  const initialView = allowedInitialViews.has(requestedInitialView) ? requestedInitialView : "dashboard";
   const state = {
     session: null,
     currentView: "dashboard",
@@ -172,8 +177,14 @@
       const result = await Green.api("/api/admin/session");
       setSession(result.data);
       showApp();
-      await loadView("dashboard");
-    } catch { showLogin(); }
+      await loadView(initialView);
+    } catch {
+      showLogin();
+      if (autoDemo) {
+        $("#login-code").value = "1234";
+        await login({ preventDefault() {} });
+      }
+    }
   }
 
   function setSession(session) {
@@ -192,7 +203,7 @@
     $("#login-error").hidden = true;
     try {
       const result = await withSubmit(button, () => Green.api("/api/admin/login", { method: "POST", json: { facilityCode: $("#login-facility").value.trim(), code: $("#login-code").value } }), "ログイン中…");
-      setSession(result.data); $("#login-code").value = ""; showApp(); await loadView("dashboard");
+      setSession(result.data); $("#login-code").value = ""; showApp(); await loadView(initialView);
     } catch (error) { Green.renderError($("#login-error"), error); }
   }
 

@@ -2,6 +2,11 @@
   "use strict";
   const { api, uploadPhoto, compressImage, uuid, setCsrfToken, formatDate, formatTime, statusLabel, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
+  const query = new URLSearchParams(location.search);
+  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
+  const allowedInitialTabs = new Set(["home", "contracts", "plants", "visits", "reports", "replacements", "requests"]);
+  const requestedInitialTab = query.get("tab");
+  const initialTab = allowedInitialTabs.has(requestedInitialTab) ? requestedInitialTab : "home";
   const loginPanel = document.querySelector("#login-panel");
   const portal = document.querySelector("#portal");
   const globalError = document.querySelector("#global-error");
@@ -17,6 +22,10 @@
       await enterPortal();
     } catch {
       loginPanel.hidden = false;
+      if (autoDemo) {
+        document.querySelector("#demo-customer-number").value = config.DEMO_CUSTOMER_NUMBER || "DEMO-GREEN-001";
+        await demoLogin();
+      }
     }
   }
 
@@ -73,7 +82,7 @@
     loginPanel.hidden = true;
     portal.hidden = false;
     await loadOverview();
-    await openTab("home");
+    await openTab(initialTab);
   }
 
   async function logout() {

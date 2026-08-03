@@ -4,6 +4,8 @@
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const Green = window.Green;
   const config = window.GREEN_CONFIG;
+  const query = new URLSearchParams(location.search);
+  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
   const state = { session: null, date: "", items: [], features: {}, currentVisit: null, currentDetail: null, deviceId: null };
   const DRAFT_PREFIX = "green9:staff:draft:";
   const DEVICE_KEY = "green9:staff:device-id";
@@ -26,7 +28,7 @@
   function showLogin(){$("#staff-login-view").hidden=false; $("#staff-app").hidden=true;}
   function showApp(){$("#staff-login-view").hidden=true; $("#staff-app").hidden=false;}
   function setSession(session){session.actorId=session.actorId||session.staffId; state.session=session; Green.setCsrfToken(session.csrfToken); $("#staff-name").textContent=session.displayName||session.staffCode||"巡回スタッフ"; $("#staff-facility-name").textContent=session.facilityCode;}
-  async function restoreSession(){try{const result=await Green.api("/api/staff/session"); setSession(result.data); showApp(); await loadToday();}catch{showLogin();}}
+  async function restoreSession(){try{const result=await Green.api("/api/staff/session"); setSession(result.data); showApp(); await loadToday();}catch{showLogin(); if(autoDemo){$("#staff-code").value="DEMO-YAMAMOTO"; $("#staff-login-code").value="1234"; await login({preventDefault(){}});}}}
   async function login(event){event.preventDefault(); const button=$("#staff-login-form button[type=submit]"); $("#staff-login-error").hidden=true; try{const result=await busy(button,()=>Green.api("/api/staff/login",{method:"POST",json:{facilityCode:$("#staff-facility").value.trim(),staffCode:$("#staff-code").value.trim(),code:$("#staff-login-code").value}}),"ログイン中…"); setSession(result.data); $("#staff-login-code").value=""; showApp(); await loadToday();}catch(error){Green.renderError($("#staff-login-error"),error);}}
   async function logout(){try{await Green.api("/api/staff/logout",{method:"POST",json:{}});}catch{} state.session=null; Green.setCsrfToken(null); showLogin();}
 
