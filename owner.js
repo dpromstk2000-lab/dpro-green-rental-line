@@ -178,7 +178,8 @@
       const result = await Green.api("/api/admin/session");
       setSession(result.data);
       showApp();
-      await loadView(initialView);
+      await loadView(result.data.mustChangeAdminCode ? "facility-settings" : initialView);
+      if (result.data.mustChangeAdminCode) Green.toast("一時コードでログインしています。新しい管理コードを設定してください。", "error");
     } catch {
       showLogin();
       if (autoDemo) {
@@ -193,6 +194,11 @@
     Green.setCsrfToken(session.csrfToken);
     $("#side-facility").textContent = session.facilityName || session.facilityCode;
     $("#session-expiry").textContent = session.expiresAt ? `有効期限 ${formatDateTime(session.expiresAt)}` : "";
+    if (session.mustChangeAdminCode) {
+      $("#session-expiry").textContent = "一時コードログイン｜管理コード変更が必要です";
+    } else if (session.supportDemoRecovery) {
+      $("#session-expiry").textContent = "デモ復旧確認セッション";
+    }
   }
 
   function showLogin() { $("#login-view").hidden = false; $("#owner-app").hidden = true; }
@@ -204,7 +210,11 @@
     $("#login-error").hidden = true;
     try {
       const result = await withSubmit(button, () => Green.api("/api/admin/login", { method: "POST", json: { facilityCode: $("#login-facility").value.trim(), code: $("#login-code").value } }), "ログイン中…");
-      setSession(result.data); $("#login-code").value = ""; showApp(); await loadView(initialView);
+      setSession(result.data); $("#login-code").value = ""; showApp();
+      const nextView = result.data.mustChangeAdminCode ? "facility-settings" : initialView;
+      await loadView(nextView);
+      if (result.data.mustChangeAdminCode) Green.toast("一時コードでログインしました。新しい管理コードを設定するまで他の画面は利用できません。", "error");
+      if (result.data.supportDemoRecovery) Green.toast("デモ環境の復旧確認用セッションです。公開デモコード1234は変更されません。", "success");
     } catch (error) { Green.renderError($("#login-error"), error); }
   }
 
@@ -214,6 +224,10 @@
   }
 
   async function loadView(view) {
+    if (state.session?.mustChangeAdminCode && view !== "facility-settings") {
+      view = "facility-settings";
+      Green.toast("一時コードでログイン中です。最初に新しい管理コードを設定してください。", "error");
+    }
     state.currentView = view;
     $$("[data-view-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.viewPanel === view));
     $$("[data-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
@@ -364,7 +378,7 @@
     if (!window.confirm("管理コードを変更します。次回ログインから新しいコードが必要です。実行しますか？")) return;
 
     try {
-      await withSubmit(
+      const result = await withSubmit(
         button,
         () => Green.api("/api/admin/facility-settings/admin-code", {
           method: "POST",
@@ -374,6 +388,13 @@
       );
       clearAdminCodeFields();
       Green.toast("管理コードを変更しました。", "success");
+      if (result.data?.requiresReauthentication) {
+        state.session = null;
+        Green.setCsrfToken(null);
+        showLogin();
+        Green.toast("新しい管理コードでログインし直してください。", "success");
+        return;
+      }
       await loadFacilitySettings();
     } catch {}
   }
