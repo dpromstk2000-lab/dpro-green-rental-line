@@ -7,7 +7,7 @@
   const config = window.GREEN_CONFIG;
   const query = new URLSearchParams(location.search);
   const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
-  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "features"]);
+  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "facility-settings", "features"]);
   const requestedInitialView = query.get("view");
   const initialView = allowedInitialViews.has(requestedInitialView) ? requestedInitialView : "dashboard";
   const state = {
@@ -35,6 +35,7 @@
     visits: [], visitMap: new Map(), visitRules: [], visitTab: "schedules",
     reports: [], reportMap: new Map(), messageTemplates: [], notifications: [], messageTab: "templates",
     replacements: [], replacementMap: new Map(), replacementTab: "requests", careBatches: [], careMap: new Map(), disposals: [],
+    facilitySettings: null,
   };
 
   const labels = {
@@ -216,7 +217,7 @@
     state.currentView = view;
     $$("[data-view-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.viewPanel === view));
     $$("[data-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
-    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", features: "機能設定" };
+    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", "facility-settings": "店舗・事業所設定", features: "機能設定" };
     $("#view-title").textContent = titles[view] || "管理画面";
     closeSidebar();
     try {
@@ -234,8 +235,145 @@
       if (view === "replacements") await loadReplacements();
       if (view === "messages") await loadMessages();
       if (view === "stock") await loadStock();
+      if (view === "facility-settings") await loadFacilitySettings();
       if (view === "features") await window.GreenFeatureSettings?.load();
     } catch (error) { Green.toast(error.message, "error"); }
+  }
+
+
+  function facilitySettingValue(value) {
+    return value === null || value === undefined ? "" : String(value);
+  }
+
+  function setFacilityCodeChangeEnabled(enabled, message) {
+    const form = $("#admin-code-change-form");
+    if (!form) return;
+    $$("input,button", form).forEach((element) => {
+      element.disabled = !enabled;
+    });
+    $("#admin-code-setting-note").textContent = message;
+    $("#admin-code-setting-note").classList.toggle("is-pass", enabled);
+  }
+
+  function clearAdminCodeFields() {
+    ["admin-current-code", "admin-new-code", "admin-confirm-code"].forEach((id) => {
+      const input = $("#" + id);
+      if (input) input.value = "";
+    });
+  }
+
+  async function loadFacilitySettings() {
+    const result = await Green.api("/api/admin/facility-settings");
+    const data = result.data || {};
+    const facility = data.facility || {};
+    const settings = data.settings || {};
+    const notifications = settings.notifications || {};
+    state.facilitySettings = data;
+
+    $("#facility-name").value = facilitySettingValue(facility.facilityName);
+    $("#facility-code").value = facilitySettingValue(facility.facilityCode);
+    $("#facility-postal-code").value = facilitySettingValue(settings.postalCode);
+    $("#facility-address").value = facilitySettingValue(settings.address);
+    $("#facility-phone").value = facilitySettingValue(settings.phone);
+    $("#facility-email").value = facilitySettingValue(settings.email);
+    $("#facility-contact-name").value = facilitySettingValue(settings.contactName);
+    $("#facility-business-hours").value = facilitySettingValue(settings.businessHours);
+    $("#facility-closed-days").value = facilitySettingValue(settings.closedDays);
+    $("#facility-member-notice").value = facilitySettingValue(settings.memberNotice);
+    $("#facility-notification-email").value = facilitySettingValue(notifications.email);
+    $("#facility-notify-inquiry").checked = Boolean(notifications.inquiry);
+    $("#facility-notify-visit-report").checked = Boolean(notifications.visitReport);
+
+    const code = data.adminCode || {};
+    if (code.canChange) {
+      setFacilityCodeChangeEnabled(
+        true,
+        code.hasCustomCode
+          ? "本番用の管理コードが設定済みです。変更すると、次回ログインから新しいコードが必要です。"
+          : "現在はCloudflare Secretの管理コードを使用しています。変更すると、この画面で設定したコードが優先されます。",
+      );
+    } else {
+      setFacilityCodeChangeEnabled(
+        false,
+        "デモ環境では公開デモ用の管理コードを保護するため変更できません。本番環境では変更できます。",
+      );
+    }
+    clearAdminCodeFields();
+  }
+
+  async function saveFacilitySettings(event) {
+    const button = event.currentTarget;
+    const form = $("#facility-settings-form");
+    if (!form.reportValidity()) return;
+
+    const payload = {
+      facilityName: $("#facility-name").value.trim(),
+      postalCode: $("#facility-postal-code").value.trim(),
+      address: $("#facility-address").value.trim(),
+      phone: $("#facility-phone").value.trim(),
+      email: $("#facility-email").value.trim(),
+      contactName: $("#facility-contact-name").value.trim(),
+      businessHours: $("#facility-business-hours").value.trim(),
+      closedDays: $("#facility-closed-days").value.trim(),
+      memberNotice: $("#facility-member-notice").value.trim(),
+      notificationEmail: $("#facility-notification-email").value.trim(),
+      notifyInquiry: $("#facility-notify-inquiry").checked,
+      notifyVisitReport: $("#facility-notify-visit-report").checked,
+    };
+
+    try {
+      const result = await withSubmit(
+        button,
+        () => Green.api("/api/admin/facility-settings", {
+          method: "PATCH",
+          json: payload,
+          idempotencyKey: crypto.randomUUID?.() || `facility-${Date.now()}`,
+        }),
+        "保存中…",
+      );
+      state.facilitySettings = result.data;
+      const name = result.data?.facility?.facilityName || payload.facilityName;
+      $("#side-facility").textContent = name;
+      if (state.session) state.session.facilityName = name;
+      Green.toast("店舗・事業所設定を保存しました。", "success");
+      await loadFacilitySettings();
+    } catch {}
+  }
+
+  async function changeAdminCode(event) {
+    const button = event.currentTarget;
+    const form = $("#admin-code-change-form");
+    if (!form.reportValidity()) return;
+
+    const currentCode = $("#admin-current-code").value;
+    const newCode = $("#admin-new-code").value;
+    const confirmCode = $("#admin-confirm-code").value;
+
+    if (!/^[0-9]{4,12}$/.test(newCode)) {
+      Green.toast("新しい管理コードは半角数字4〜12桁で入力してください。", "error");
+      $("#admin-new-code").focus();
+      return;
+    }
+    if (newCode !== confirmCode) {
+      Green.toast("新しい管理コードと確認用コードが一致しません。", "error");
+      $("#admin-confirm-code").focus();
+      return;
+    }
+    if (!window.confirm("管理コードを変更します。次回ログインから新しいコードが必要です。実行しますか？")) return;
+
+    try {
+      await withSubmit(
+        button,
+        () => Green.api("/api/admin/facility-settings/admin-code", {
+          method: "POST",
+          json: { currentCode, newCode },
+        }),
+        "変更中…",
+      );
+      clearAdminCodeFields();
+      Green.toast("管理コードを変更しました。", "success");
+      await loadFacilitySettings();
+    } catch {}
   }
 
   async function loadDashboard() {
@@ -1053,6 +1191,15 @@
     $$("[data-replacement-tab]").forEach((button) => button.addEventListener("click", () => setReplacementTab(button.dataset.replacementTab)));
     $("#asset-settings-save").addEventListener("click", saveAssetSettings);
     $("#asset-plant-mode").addEventListener("change", renderAssetSettings);
+    $("#facility-settings-save").addEventListener("click", saveFacilitySettings);
+    $("#admin-code-change-save").addEventListener("click", changeAdminCode);
+    $$("[data-clear-code]").forEach((button) => button.addEventListener("click", () => {
+      const input = $("#" + button.dataset.clearCode);
+      if (input) {
+        input.value = "";
+        input.focus();
+      }
+    }));
   }
 
   function init() {

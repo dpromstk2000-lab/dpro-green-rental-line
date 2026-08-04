@@ -48,6 +48,7 @@
         <button data-view="replacements"><span>換</span>交換・回収・養生</button>
         <button data-view="messages"><span>送</span>LINE・メッセージ</button>
         <button data-view="stock"><span>庫</span>簡易在庫</button>
+        <button data-view="facility-settings"><span>店</span>店舗・事業所設定</button>
         <button data-view="features"><span>⚙</span>機能設定</button>
       </nav>
       <div class="owner-side-bottom">
@@ -181,6 +182,127 @@
           <div class="owner-heading"><div><p class="eyebrow">SIMPLE STOCK</p><h2>簡易在庫</h2><p>数量と保管場所を管理します。金額・原価・会計評価は扱いません。</p></div><button class="btn btn--primary" data-action="new-stock">＋ 在庫品目</button></div>
           <div class="owner-toolbar"><label class="owner-search">検索<input id="stock-search" placeholder="在庫コード・品目名・保管場所"></label><button class="btn btn--secondary" data-load="stock">検索</button></div>
           <div class="owner-table-wrap"><table class="owner-table"><thead><tr><th>在庫コード</th><th>品目</th><th>保管場所</th><th>現在数</th><th>利用可能</th><th>予約</th><th>養生</th><th>警告</th><th></th></tr></thead><tbody id="stock-rows"></tbody></table></div>
+        </section>
+
+
+        <section class="owner-view" data-view-panel="facility-settings">
+          <div class="owner-heading">
+            <div>
+              <p class="eyebrow">FACILITY SETTINGS</p>
+              <h2>店舗・事業所設定</h2>
+              <p>お客様に表示する事業所情報、連絡先、営業時間、通知先を管理します。</p>
+            </div>
+            <button class="btn btn--primary" id="facility-settings-save" type="button">変更を保存</button>
+          </div>
+
+          <form id="facility-settings-form" class="owner-settings-stack" novalidate>
+            <article class="owner-panel owner-settings-panel">
+              <div class="owner-panel-head">
+                <div>
+                  <h3>基本情報</h3>
+                  <p>事業所コードはシステム識別に使用するため変更できません。</p>
+                </div>
+              </div>
+              <div class="owner-form-grid owner-settings-grid">
+                <label>事業所名
+                  <input id="facility-name" name="facilityName" maxlength="120" autocomplete="organization" required>
+                </label>
+                <label>事業所コード
+                  <input id="facility-code" name="facilityCode" readonly aria-readonly="true">
+                </label>
+                <label>郵便番号
+                  <input id="facility-postal-code" name="postalCode" maxlength="12" inputmode="numeric" autocomplete="postal-code" placeholder="811-2202">
+                </label>
+                <label>電話番号
+                  <input id="facility-phone" name="phone" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="092-000-0000">
+                </label>
+                <label class="full">住所
+                  <input id="facility-address" name="address" maxlength="300" autocomplete="street-address">
+                </label>
+                <label>メールアドレス
+                  <input id="facility-email" name="email" type="email" maxlength="320" autocomplete="email">
+                </label>
+                <label>担当者名
+                  <input id="facility-contact-name" name="contactName" maxlength="120" autocomplete="name">
+                </label>
+              </div>
+            </article>
+
+            <article class="owner-panel owner-settings-panel">
+              <div class="owner-panel-head">
+                <div>
+                  <h3>営業時間・お客様向け案内</h3>
+                  <p>お客様画面や公開画面で案内する内容として使用します。</p>
+                </div>
+              </div>
+              <div class="owner-form-grid owner-settings-grid">
+                <label class="full">営業時間
+                  <textarea id="facility-business-hours" name="businessHours" maxlength="1000" placeholder="平日 9:00〜18:00"></textarea>
+                </label>
+                <label class="full">定休日
+                  <input id="facility-closed-days" name="closedDays" maxlength="300" placeholder="土曜・日曜・祝日">
+                </label>
+                <label class="full">お客様向け案内
+                  <textarea id="facility-member-notice" name="memberNotice" maxlength="3000" placeholder="巡回やご相談に関するご案内を入力してください。"></textarea>
+                </label>
+              </div>
+            </article>
+
+            <article class="owner-panel owner-settings-panel">
+              <div class="owner-panel-head">
+                <div>
+                  <h3>通知設定</h3>
+                  <p>通知機能を使用するときの宛先と対象を設定します。</p>
+                </div>
+              </div>
+              <div class="owner-form-grid owner-settings-grid">
+                <label class="full">通知先メールアドレス
+                  <input id="facility-notification-email" name="notificationEmail" type="email" maxlength="320" autocomplete="email">
+                </label>
+                <label class="owner-check owner-settings-check">
+                  <input id="facility-notify-inquiry" name="notifyInquiry" type="checkbox">
+                  新しい問い合わせを通知する
+                </label>
+                <label class="owner-check owner-settings-check">
+                  <input id="facility-notify-visit-report" name="notifyVisitReport" type="checkbox">
+                  作業報告の完了を通知する
+                </label>
+              </div>
+            </article>
+          </form>
+
+          <article class="owner-panel owner-settings-panel owner-code-settings-panel">
+            <div class="owner-panel-head">
+              <div>
+                <h3>管理コード変更</h3>
+                <p>本番環境のみ変更できます。新しいコードは平文では保存しません。</p>
+              </div>
+            </div>
+            <div class="owner-warning-box" id="admin-code-setting-note">管理コード変更の利用可否を確認しています。</div>
+            <form id="admin-code-change-form" class="owner-form-grid owner-settings-grid" novalidate>
+              <label class="full">現在の管理コード
+                <span class="owner-code-row">
+                  <input id="admin-current-code" name="currentCode" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12">
+                  <button type="button" class="owner-link-button" data-clear-code="admin-current-code">削除</button>
+                </span>
+              </label>
+              <label>新しい管理コード
+                <span class="owner-code-row">
+                  <input id="admin-new-code" name="newCode" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12">
+                  <button type="button" class="owner-link-button" data-clear-code="admin-new-code">削除</button>
+                </span>
+              </label>
+              <label>新しい管理コード（確認）
+                <span class="owner-code-row">
+                  <input id="admin-confirm-code" name="confirmCode" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12">
+                  <button type="button" class="owner-link-button" data-clear-code="admin-confirm-code">削除</button>
+                </span>
+              </label>
+              <div class="full owner-settings-actions">
+                <button class="btn btn--secondary" id="admin-code-change-save" type="button">管理コードを変更</button>
+              </div>
+            </form>
+          </article>
         </section>
 
         <section class="owner-view" data-view-panel="features">
