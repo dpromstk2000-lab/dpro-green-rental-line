@@ -49,6 +49,8 @@
         <button data-view="messages"><span>送</span>LINE・メッセージ</button>
         <button data-view="stock"><span>庫</span>簡易在庫</button>
         <button data-view="facility-settings"><span>店</span>店舗・事業所設定</button>
+        <button data-view="business-calendar"><span>休</span>営業日・休日</button>
+        <button data-view="announcements"><span>知</span>公開お知らせ</button>
         <button data-view="features"><span>⚙</span>機能設定</button>
       </nav>
       <div class="owner-side-bottom">
@@ -135,6 +137,7 @@
           <div class="owner-tabs" role="tablist" aria-label="巡回管理切替"><button class="is-active" data-visit-tab="schedules">訪問予定</button><button data-visit-tab="rules">定期訪問ルール</button></div>
           <div data-visit-panel="schedules">
             <div class="owner-toolbar"><label>開始日<input id="visit-from" type="date"></label><label>終了日<input id="visit-to" type="date"></label><label>状態<select id="visit-status"><option value="">すべて</option></select></label><label>担当<select id="visit-staff"><option value="">すべて</option></select></label><label class="owner-search">検索<input id="visit-search" placeholder="訪問番号・顧客・拠点・電話"></label><button class="btn btn--secondary" data-load="visits">表示</button></div>
+            <div class="owner-warning-box owner-schedule-warning-box" id="visit-schedule-warnings" hidden></div>
             <div class="owner-route-summary" id="visit-summary"></div>
             <div class="owner-table-wrap"><table class="owner-table"><thead><tr><th>順</th><th>日時</th><th>顧客・拠点</th><th>予定作業</th><th>担当</th><th>状態</th><th></th></tr></thead><tbody id="visit-rows"></tbody></table></div>
           </div>
@@ -231,16 +234,16 @@
             <article class="owner-panel owner-settings-panel">
               <div class="owner-panel-head">
                 <div>
-                  <h3>営業時間・お客様向け案内</h3>
-                  <p>お客様画面や公開画面で案内する内容として使用します。</p>
+                  <h3>お客様向け案内</h3>
+                  <p>営業時間と休日は「営業日・休日」で設定すると、この概要も自動更新されます。</p>
                 </div>
               </div>
               <div class="owner-form-grid owner-settings-grid">
-                <label class="full">営業時間
-                  <textarea id="facility-business-hours" name="businessHours" maxlength="1000" placeholder="平日 9:00〜18:00"></textarea>
+                <label class="full">営業時間の表示概要
+                  <textarea id="facility-business-hours" name="businessHours" maxlength="1000" readonly aria-readonly="true" placeholder="営業日・休日から自動生成します。"></textarea>
                 </label>
-                <label class="full">定休日
-                  <input id="facility-closed-days" name="closedDays" maxlength="300" placeholder="土曜・日曜・祝日">
+                <label class="full">定休日の表示概要
+                  <input id="facility-closed-days" name="closedDays" maxlength="300" readonly aria-readonly="true" placeholder="営業日・休日から自動生成します。">
                 </label>
                 <label class="full">お客様向け案内
                   <textarea id="facility-member-notice" name="memberNotice" maxlength="3000" placeholder="巡回やご相談に関するご案内を入力してください。"></textarea>
@@ -305,6 +308,69 @@
           </article>
         </section>
 
+
+        <section class="owner-view" data-view-panel="business-calendar">
+          <div class="owner-heading">
+            <div><p class="eyebrow">BUSINESS CALENDAR</p><h2>営業日・休日</h2><p>通常営業時間、定休日、臨時休業、特別営業を管理し、巡回予定と公開案内へ反映します。</p></div>
+            <button class="btn btn--primary" id="business-hours-save" type="button">通常営業時間を保存</button>
+          </div>
+          <div class="owner-warning-box is-pass">休日設定は巡回予定の登録・一括生成時に確認されます。警告が出た予定は管理者が日付を確定します。</div>
+          <article class="owner-panel owner-settings-panel">
+            <div class="owner-panel-head"><div><h3>曜日別営業時間</h3><p>30分単位で設定します。定休日は「休業」にしてください。</p></div></div>
+            <div id="business-hours-list" class="green12-hours-list"><div class="owner-loading">読み込み中です。</div></div>
+            <div class="green12-calendar-options">
+              <label class="owner-check owner-settings-check"><input id="national-holiday-policy" type="checkbox">祝日データ登録日は原則休業として扱う</label>
+              <label class="owner-check owner-settings-check"><input id="website-sync-enabled" type="checkbox">ホームページ連動用の公開APIに反映する</label>
+            </div>
+          </article>
+          <article class="owner-panel owner-settings-panel">
+            <div class="owner-panel-head"><div><h3>臨時休業・特別営業</h3><p>お盆休み、年末年始、研修休業、通常定休日の特別営業を期間で登録できます。</p></div></div>
+            <form id="holiday-form" class="owner-form-grid owner-settings-grid" novalidate>
+              <label>開始日<input id="holiday-from" name="fromDate" type="date" required></label>
+              <label>終了日<input id="holiday-to" name="toDate" type="date" required></label>
+              <label>区分<select id="holiday-type" name="type"><option value="closed">臨時休業</option><option value="special_open">特別営業</option><option value="national_holiday">祝日休業</option></select></label>
+              <label>表示タイトル<input id="holiday-title" name="title" maxlength="120" placeholder="夏季休業"></label>
+              <label class="green12-special-time">開始時刻<input id="holiday-open-time" name="openTime" type="time" step="1800"></label>
+              <label class="green12-special-time">終了時刻<input id="holiday-close-time" name="closeTime" type="time" step="1800"></label>
+              <label class="full">理由・社内メモ<textarea id="holiday-note" name="note" maxlength="1000"></textarea></label>
+              <label class="owner-check owner-settings-check"><input id="holiday-show-website" name="showWebsite" type="checkbox" checked>ホームページへ表示</label>
+              <label class="owner-check owner-settings-check"><input id="holiday-show-public" name="showPublicForm" type="checkbox" checked>公開相談画面へ表示</label>
+              <label class="owner-check owner-settings-check"><input id="holiday-show-member" name="showMember" type="checkbox" checked>お客様画面へ表示</label>
+              <label class="owner-check owner-settings-check"><input id="holiday-create-announcement" name="createAnnouncement" type="checkbox" checked>期間付きお知らせを自動作成</label>
+              <div class="full owner-settings-actions"><button class="btn btn--secondary" id="holiday-add" type="button">休日・特別営業を登録</button></div>
+            </form>
+            <div id="holiday-list" class="green12-list"><div class="owner-loading">読み込み中です。</div></div>
+          </article>
+          <article class="owner-panel owner-settings-panel">
+            <div class="owner-panel-head"><div><h3>公開表示プレビュー</h3><p>将来のホームページ連動でも同じ公開APIを使用します。</p></div><a class="btn btn--secondary btn--small" href="index.html" target="_blank" rel="noopener">公開相談画面を確認</a></div>
+            <div id="calendar-public-preview" class="green12-preview">読み込み中です。</div>
+          </article>
+        </section>
+
+        <section class="owner-view" data-view-panel="announcements">
+          <div class="owner-heading"><div><p class="eyebrow">PUBLIC ANNOUNCEMENTS</p><h2>公開お知らせ</h2><p>ホームページ、公開相談画面、お客様画面へ期間を指定して表示します。</p></div><button class="btn btn--primary" id="announcement-new" type="button">＋ お知らせを作成</button></div>
+          <div class="owner-warning-box">公開先には安全な案内だけを表示します。社内メモ、通知先、管理コードは公開APIへ出しません。</div>
+          <article class="owner-panel owner-settings-panel" id="announcement-editor" hidden>
+            <div class="owner-panel-head"><div><h3 id="announcement-editor-title">お知らせを作成</h3><p>公開期間終了後は自動的に非表示になります。</p></div><button class="btn btn--secondary btn--small" id="announcement-cancel" type="button">編集を閉じる</button></div>
+            <form id="announcement-form" class="owner-form-grid owner-settings-grid" novalidate>
+              <input id="announcement-id" type="hidden">
+              <label>種類<select id="announcement-type"><option value="holiday">休業案内</option><option value="hours_change">営業時間変更</option><option value="service">サービス案内</option><option value="important">重要なお知らせ</option><option value="general">一般案内</option></select></label>
+              <label>状態<select id="announcement-status"><option value="draft">下書き</option><option value="published">公開</option><option value="archived">終了・保管</option></select></label>
+              <label class="full">タイトル<input id="announcement-title" maxlength="160" required></label>
+              <label class="full">本文<textarea id="announcement-body" maxlength="5000" required></textarea></label>
+              <label>公開開始<input id="announcement-from" type="datetime-local"></label>
+              <label>公開終了<input id="announcement-until" type="datetime-local"></label>
+              <label class="owner-check owner-settings-check"><input id="announcement-important" type="checkbox">重要表示</label>
+              <label class="owner-check owner-settings-check"><input id="announcement-website" type="checkbox" checked>ホームページ</label>
+              <label class="owner-check owner-settings-check"><input id="announcement-public" type="checkbox" checked>公開相談画面</label>
+              <label class="owner-check owner-settings-check"><input id="announcement-member" type="checkbox" checked>お客様画面</label>
+              <label class="full">LINE配信用文面<textarea id="announcement-line-copy" maxlength="5000" placeholder="未入力の場合はタイトルと本文から自動作成します。"></textarea></label>
+              <div class="full owner-settings-actions"><button class="btn btn--primary" id="announcement-save" type="button">お知らせを保存</button></div>
+            </form>
+          </article>
+          <div id="announcement-list" class="green12-list"><div class="owner-loading">読み込み中です。</div></div>
+        </section>
+
         <section class="owner-view" data-view-panel="features">
           <div class="owner-heading"><div><p class="eyebrow">FEATURE SETTINGS</p><h2>機能設定</h2><p>店舗運用に合わせて機能を切り替えます。OFFにしても既存データは削除しません。</p></div><button class="btn btn--primary" id="feature-save-all">変更を保存</button></div>
           <div class="owner-warning-box" id="feature-dependency-box">依存関係を確認しています。</div>
@@ -329,6 +395,7 @@
   <script src="config.js"></script>
   <script src="green-common.js"></script>
   <script src="owner.js"></script>
+  <script src="green12.js"></script>
   <script src="feature-settings.js"></script>
 </body>
 </html>

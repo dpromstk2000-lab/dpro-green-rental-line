@@ -7,7 +7,7 @@
   const config = window.GREEN_CONFIG;
   const query = new URLSearchParams(location.search);
   const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
-  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "facility-settings", "features"]);
+  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "facility-settings", "business-calendar", "announcements", "features"]);
   const requestedInitialView = query.get("view");
   const initialView = allowedInitialViews.has(requestedInitialView) ? requestedInitialView : "dashboard";
   const state = {
@@ -217,7 +217,7 @@
     state.currentView = view;
     $$("[data-view-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.viewPanel === view));
     $$("[data-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
-    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", "facility-settings": "店舗・事業所設定", features: "機能設定" };
+    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", "facility-settings": "店舗・事業所設定", "business-calendar": "営業日・休日", announcements: "公開お知らせ", features: "機能設定" };
     $("#view-title").textContent = titles[view] || "管理画面";
     closeSidebar();
     try {
@@ -236,6 +236,8 @@
       if (view === "messages") await loadMessages();
       if (view === "stock") await loadStock();
       if (view === "facility-settings") await loadFacilitySettings();
+      if (view === "business-calendar") await window.Green12?.loadCalendar();
+      if (view === "announcements") await window.Green12?.loadAnnouncements();
       if (view === "features") await window.GreenFeatureSettings?.load();
     } catch (error) { Green.toast(error.message, "error"); }
   }
@@ -537,13 +539,28 @@
 
   async function siteForm(prefill = {}) {
     await ensureCustomers();
-    openDialog(prefill.id ? "拠点を編集" : "拠点を登録", "CUSTOMER SITE", `<form id="site-form" class="owner-form-grid"><label>顧客<select name="customerId" ${prefill.id ? "disabled" : ""}>${customerOptions(prefill.customer_id || "")}</select></label><label>拠点名<input name="siteName" required value="${esc(prefill.site_name || "")}"></label><label>郵便番号<input name="postalCode" value="${esc(prefill.postal_code || "")}"></label><label>都道府県<input name="prefecture" value="${esc(prefill.prefecture || "")}"></label><label>市区町村<input name="city" value="${esc(prefill.city || "")}"></label><label>番地<input name="addressLine" value="${esc(prefill.address_line || "")}"></label><label class="full">建物名<input name="buildingName" value="${esc(prefill.building_name || "")}"></label><label>現地担当者<input name="contactName" value="${esc(prefill.contact_name || "")}"></label><label>電話<input name="phone" value="${esc(prefill.phone || "")}"></label><label class="full">入館方法<textarea name="entryInfo">${esc(prefill.entry_info || "")}</textarea></label><label class="full">駐車情報<textarea name="parkingInfo">${esc(prefill.parking_info || "")}</textarea></label><label class="full">社内メモ<textarea name="internalNote">${esc(prefill.internal_note || "")}</textarea></label></form>`, `<button type="button" class="btn btn--secondary" data-dialog-close>取消</button><button type="button" class="btn btn--primary" id="save-site">${prefill.id ? "更新" : "登録"}</button>`);
-    $("#save-site").addEventListener("click", async (event) => { try { const data = formDataObject($("#site-form")); if (prefill.id) delete data.customerId; await withSubmit(event.currentTarget, () => Green.api(prefill.id ? `/api/admin/sites/${prefill.id}` : "/api/admin/sites", { method: prefill.id ? "PATCH" : "POST", json: data })); Green.toast(prefill.id ? "拠点を更新しました。" : "拠点を登録しました。", "success"); closeDialog(); await ensureSites(true); await loadSites(); } catch {} });
+    const schedule = prefill.metadata?.schedule || {};
+    const allowed = new Set(Array.isArray(schedule.allowedWeekdays) ? schedule.allowedWeekdays.map(Number) : [1,2,3,4,5]);
+    const exceptions = Array.isArray(schedule.exceptions) ? schedule.exceptions : [];
+    const weekdayLabels = [[1,"月"],[2,"火"],[3,"水"],[4,"木"],[5,"金"],[6,"土"],[0,"日"]];
+    openDialog(prefill.id ? "拠点を編集" : "拠点を登録", "CUSTOMER SITE", `<form id="site-form" class="owner-form-grid"><label>顧客<select name="customerId" ${prefill.id ? "disabled" : ""}>${customerOptions(prefill.customer_id || "")}</select></label><label>拠点名<input name="siteName" required value="${esc(prefill.site_name || "")}"></label><label>郵便番号<input name="postalCode" value="${esc(prefill.postal_code || "")}"></label><label>都道府県<input name="prefecture" value="${esc(prefill.prefecture || "")}"></label><label>市区町村<input name="city" value="${esc(prefill.city || "")}"></label><label>番地<input name="addressLine" value="${esc(prefill.address_line || "")}"></label><label class="full">建物名<input name="buildingName" value="${esc(prefill.building_name || "")}"></label><label>現地担当者<input name="contactName" value="${esc(prefill.contact_name || "")}"></label><label>電話<input name="phone" value="${esc(prefill.phone || "")}"></label><label class="full">入館方法<textarea name="entryInfo">${esc(prefill.entry_info || "")}</textarea></label><label class="full">駐車情報<textarea name="parkingInfo">${esc(prefill.parking_info || "")}</textarea></label>
+      <fieldset class="full owner-weekdays green12-site-weekdays"><legend>訪問・入館可能曜日</legend>${weekdayLabels.map(([value,label]) => `<label><input type="checkbox" name="visitAllowedWeekday" value="${value}"${allowed.has(value) ? " checked" : ""}>${label}</label>`).join("")}</fieldset>
+      <label>訪問可能開始<input name="visitTimeFrom" type="time" step="1800" value="${esc(schedule.timeFrom || "09:00")}"></label><label>訪問可能終了<input name="visitTimeTo" type="time" step="1800" value="${esc(schedule.timeTo || "17:00")}"></label>
+      <label class="owner-check owner-settings-check"><input name="allowNationalHolidays" type="checkbox"${schedule.allowNationalHolidays ? " checked" : ""}>祝日も訪問可能</label>
+      <label class="full">訪問・入館条件<textarea name="visitScheduleNote">${esc(schedule.note || "")}</textarea></label>
+      <div class="full green12-site-exceptions" data-existing="${esc(JSON.stringify(exceptions))}"><div class="owner-panel-head"><div><h3>訪問不可日・特別訪問日</h3><p>お客様施設の休館日や、通常と異なる入館可能日を登録します。</p></div><button type="button" class="btn btn--secondary btn--small" data-add-site-exception>＋ 日付を追加</button></div><div data-site-exception-list></div><input type="hidden" name="scheduleExceptionsJson"></div>
+      <label class="full">社内メモ<textarea name="internalNote">${esc(prefill.internal_note || "")}</textarea></label></form>`, `<button type="button" class="btn btn--secondary" data-dialog-close>取消</button><button type="button" class="btn btn--primary" id="save-site">${prefill.id ? "更新" : "登録"}</button>`);
+    window.Green12?.initSiteScheduleEditor?.();
+    $("#save-site").addEventListener("click", async (event) => { try { window.Green12?.serializeSiteScheduleEditor?.(); const data = formDataObject($("#site-form")); data.visitAllowedWeekdays = $$("input[name='visitAllowedWeekday']:checked", $("#site-form")).map((input) => Number(input.value)); delete data.visitAllowedWeekday; if (prefill.id) delete data.customerId; await withSubmit(event.currentTarget, () => Green.api(prefill.id ? `/api/admin/sites/${prefill.id}` : "/api/admin/sites", { method: prefill.id ? "PATCH" : "POST", json: data })); Green.toast(prefill.id ? "拠点を更新しました。" : "拠点を登録しました。", "success"); closeDialog(); await ensureSites(true); await loadSites(); } catch {} });
   }
 
   async function openSite(id) {
     loadingDialog("拠点詳細"); const result = await Green.api(`/api/admin/sites/${id}`); const { site, areas } = result.data;
-    openDialog(site.site_name, "SITE DETAIL", `<div class="owner-detail-grid">${detail("拠点コード",site.site_code)}${detail("住所",[site.prefecture,site.city,site.address_line,site.building_name].filter(Boolean).join(" ") || "未設定")}${detail("現地担当者",site.contact_name || "未設定")}${detail("電話",site.phone || "未設定")}${detail("入館方法",site.entry_info || "未設定")}${detail("駐車情報",site.parking_info || "未設定")}</div>${miniSection("設置場所",areas.map((a) => `${a.area_name}${a.floor_name ? `（${a.floor_name}）` : ""}｜${a.placement_note || "メモなし"}`))}<div class="owner-dialog-actions"><button class="btn btn--secondary" id="edit-site">拠点を編集</button><button class="btn btn--secondary" id="add-area">設置場所を追加</button></div>`);
+    const schedule = site.metadata?.schedule || {};
+    const weekdayNames = ["日","月","火","水","木","金","土"];
+    const days = (schedule.allowedWeekdays || []).map((day) => weekdayNames[Number(day)]).join("・") || "未設定";
+    const exceptions = (schedule.exceptions || []).map((item) => `${item.date}｜${item.type === "special_open" ? "特別訪問可" : "訪問不可"}${item.title ? `｜${item.title}` : ""}`);
+    openDialog(site.site_name, "SITE DETAIL", `<div class="owner-detail-grid">${detail("拠点コード",site.site_code)}${detail("住所",[site.prefecture,site.city,site.address_line,site.building_name].filter(Boolean).join(" ") || "未設定")}${detail("現地担当者",site.contact_name || "未設定")}${detail("電話",site.phone || "未設定")}${detail("入館方法",site.entry_info || "未設定")}${detail("駐車情報",site.parking_info || "未設定")}${detail("訪問可能曜日",days)}${detail("訪問可能時間",`${schedule.timeFrom || "未設定"}〜${schedule.timeTo || "未設定"}`)}</div>${miniSection("訪問不可日・特別訪問日", exceptions)}${miniSection("設置場所",areas.map((a) => `${a.area_name}${a.floor_name ? `（${a.floor_name}）` : ""}｜${a.placement_note || "メモなし"}`))}<div class="owner-dialog-actions"><button class="btn btn--secondary" id="edit-site">拠点を編集</button><button class="btn btn--secondary" id="add-area">設置場所を追加</button></div>`);
     $("#edit-site").addEventListener("click", () => siteForm({ ...site, id })); $("#add-area").addEventListener("click", () => areaForm(id));
   }
 
@@ -868,11 +885,12 @@
       unavailable: state.visits.filter((item) => ['unavailable','revisit_required'].includes(item.status)).length,
     };
     $('#visit-summary').innerHTML = Object.entries({ '予定': counts.total, '未割当': counts.unassigned, '作業中': counts.working, '完了': counts.completed, '訪問できず・再訪問': counts.unavailable }).map(([label, count]) => `<div><small>${label}</small><strong>${count}</strong></div>`).join('');
+    const warnedVisits = state.visits.filter((item) => Array.isArray(item.metadata?.scheduleWarnings) && item.metadata.scheduleWarnings.length); const warningBox = $('#visit-schedule-warnings'); if (warningBox) { warningBox.hidden = warnedVisits.length === 0; warningBox.textContent = warnedVisits.length ? `休日・入館条件の確認が必要な予定が${warnedVisits.length}件あります。詳細を開いて日程を確認してください。` : ''; }
     $('#visit-rows').innerHTML = state.visits.length ? state.visits.map((item) => {
       const primary = item.assignments?.find((assignment) => assignment.assignment_role === 'primary') || item.assignments?.[0];
-      const routeOrder = item.route?.route_order || '—';
+      const routeOrder = item.route?.route_order || '—'; const scheduleWarning = Array.isArray(item.metadata?.scheduleWarnings) && item.metadata.scheduleWarnings.length ? `<span class="owner-status green12-warning-chip">休日要確認</span>` : '';
       const time = [Green.formatTime(item.planned_time_from), item.planned_time_to ? Green.formatTime(item.planned_time_to) : ''].filter(Boolean).join('〜');
-      return `<tr><td><span class="owner-route-order">${esc(routeOrder)}</span></td><td><span class="owner-row-title">${Green.formatDate(item.planned_date)}</span><span class="owner-row-sub">${esc(time)}</span></td><td><span class="owner-row-title">${esc(item.customer?.company_name || item.customer?.contact_name || '顧客')}</span><span class="owner-row-sub">${esc(item.site?.site_name || '拠点未設定')}</span></td><td>${esc(item.planned_work || '定期メンテナンス')}<span class="owner-row-sub">${esc(labels.visitType[item.visit_type] || item.visit_type)}</span></td><td>${primary ? esc(primary.staff?.display_name || state.staffMap.get(primary.staff_id)?.display_name || '担当') : '<span class="owner-warning-number">未割当</span>'}</td><td>${statusChip(item.status, 'visit')}</td><td><button class="owner-row-action" data-visit="${item.id}">詳細</button></td></tr>`;
+      return `<tr><td><span class="owner-route-order">${esc(routeOrder)}</span></td><td><span class="owner-row-title">${Green.formatDate(item.planned_date)}</span><span class="owner-row-sub">${esc(time)}</span></td><td><span class="owner-row-title">${esc(item.customer?.company_name || item.customer?.contact_name || '顧客')}</span><span class="owner-row-sub">${esc(item.site?.site_name || '拠点未設定')}</span></td><td>${esc(item.planned_work || '定期メンテナンス')}<span class="owner-row-sub">${esc(labels.visitType[item.visit_type] || item.visit_type)} ${scheduleWarning}</span></td><td>${primary ? esc(primary.staff?.display_name || state.staffMap.get(primary.staff_id)?.display_name || '担当') : '<span class="owner-warning-number">未割当</span>'}</td><td>${statusChip(item.status, 'visit')}</td><td><button class="owner-row-action" data-visit="${item.id}">詳細</button></td></tr>`;
     }).join('') : emptyRow(7);
     $$('[data-visit]').forEach((button) => button.addEventListener('click', () => openVisit(button.dataset.visit)));
     if (state.visitTab === 'rules') await loadVisitRules();
@@ -922,7 +940,32 @@
       <label class="full">予定作業<textarea name="plannedWork">${esc(prefill.planned_work || '定期メンテナンス')}</textarea></label><label>ルートエリア<input name="routeArea" value="${esc(prefill.route_area || '')}"></label><label class="full">お客様向け注意<textarea name="customerVisibleNote">${esc(prefill.customer_visible_note || '')}</textarea></label><label class="full">社内メモ<textarea name="internalNote">${esc(prefill.internal_note || '')}</textarea></label>
     </form>`, `<button type="button" class="btn btn--secondary" data-dialog-close>取消</button><button type="button" class="btn btn--primary" id="save-visit">${prefill.id ? '更新' : '登録'}</button>`);
     if (!prefill.id) $('#visit-customer').addEventListener('change', () => { $('#visit-site').innerHTML = siteOptions('', $('#visit-customer').value); });
-    $('#save-visit').addEventListener('click', async (event) => { try { const data = formDataObject($('#visit-form')); await withSubmit(event.currentTarget, () => Green.api(prefill.id ? `/api/admin/visits/${prefill.id}` : '/api/admin/visits', { method: prefill.id ? 'PATCH' : 'POST', json: data })); Green.toast(prefill.id ? '訪問予定を更新しました。' : '訪問予定を登録しました。', 'success'); closeDialog(); await loadVisits(); } catch {} });
+    $('#save-visit').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const path = prefill.id ? `/api/admin/visits/${prefill.id}` : '/api/admin/visits';
+      const method = prefill.id ? 'PATCH' : 'POST';
+      const data = formDataObject($('#visit-form'));
+      Green.setBusy(button, true, '確認中…');
+      try {
+        let result;
+        try {
+          result = await Green.api(path, { method, json: data });
+        } catch (error) {
+          if (error.code !== 'schedule_warning') throw error;
+          const warnings = error.details?.warnings || [];
+          const suggestions = [error.details?.previousAvailableDate, error.details?.nextAvailableDate].filter(Boolean).join(' または ');
+          const message = `${warnings.map((item) => `・${item.message}`).join('\n')}${suggestions ? `\n\n候補日：${suggestions}` : ''}\n\nこの日付のまま登録しますか？`;
+          if (!window.confirm(message)) return;
+          data.confirmScheduleWarning = true;
+          data.scheduleOverrideNote = warnings.map((item) => item.message).join(' / ');
+          result = await Green.api(path, { method, json: data });
+        }
+        Green.toast(prefill.id ? '訪問予定を更新しました。' : '訪問予定を登録しました。', 'success');
+        closeDialog(); await loadVisits();
+      } catch (error) {
+        Green.toast(`${error.message}${error.requestId ? `（確認番号：${error.requestId}）` : ''}`, 'error');
+      } finally { Green.setBusy(button, false); }
+    });
   }
 
   async function assignVisitForm(visit, selectedStaff = '', selectedOrder = '') {
@@ -933,7 +976,7 @@
 
   function generateVisitsForm() {
     openDialog('訪問予定を一括生成', 'GENERATE VISITS', `<form id="visit-generate-form" class="owner-form-grid"><label>開始日<input type="date" name="fromDate" required value="${esc($('#visit-from').value)}"></label><label>終了日<input type="date" name="toDate" required value="${esc($('#visit-to').value)}"></label></form><div class="owner-inline-note">利用中の定期訪問ルールから予定を生成します。同じルール・同じ日付は重複生成されません。</div>`, '<button type="button" class="btn btn--secondary" data-dialog-close>取消</button><button type="button" class="btn btn--primary" id="run-visit-generation">生成する</button>');
-    $('#run-visit-generation').addEventListener('click', async (event) => { try { const result = await withSubmit(event.currentTarget, () => Green.api('/api/admin/visits/generate', { method: 'POST', json: formDataObject($('#visit-generate-form')) }), '生成中…'); Green.toast(`${result.data.inserted || 0}件の予定を生成しました。`, 'success'); closeDialog(); await loadVisits(); } catch {} });
+    $('#run-visit-generation').addEventListener('click', async (event) => { try { const result = await withSubmit(event.currentTarget, () => Green.api('/api/admin/visits/generate', { method: 'POST', json: formDataObject($('#visit-generate-form')) }), '生成中…'); const warningCount = result.data.scheduleWarningCount || 0; Green.toast(`${result.data.inserted || 0}件の予定を生成しました。${warningCount ? ` 休日・入館条件の要確認が${warningCount}件あります。` : ''}`, warningCount ? 'info' : 'success'); closeDialog(); await loadVisits(); } catch {} });
   }
 
   async function visitRuleForm(prefill = {}) {

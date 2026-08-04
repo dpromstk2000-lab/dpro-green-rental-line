@@ -146,4 +146,19 @@
   }
 
   initialize();
+
+  async function loadPublicSiteProfile() {
+    const region = document.querySelector('#public-announcements');
+    if (!region) return;
+    try {
+      const response = await Green.api('/api/public/site-profile?target=public_form');
+      const profile = response.data || {};
+      document.querySelectorAll('[data-facility-name]').forEach((node) => { if (profile.facilityName) node.textContent = profile.facilityName; });
+      const items = profile.announcements || [];
+      region.hidden = items.length === 0;
+      region.innerHTML = items.map((item) => `<article class="green12-public-notice${item.isImportant ? ' is-important' : ''}"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body).replace(/\n/g,'<br>')}</p>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ''}</article>`).join('');
+    } catch { region.hidden = true; }
+  }
+
+  loadPublicSiteProfile();
 })();

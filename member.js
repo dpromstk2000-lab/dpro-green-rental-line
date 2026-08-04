@@ -2,11 +2,6 @@
   "use strict";
   const { api, uploadPhoto, compressImage, uuid, setCsrfToken, formatDate, formatTime, statusLabel, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
-  const query = new URLSearchParams(location.search);
-  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
-  const allowedInitialTabs = new Set(["home", "contracts", "plants", "visits", "reports", "replacements", "requests"]);
-  const requestedInitialTab = query.get("tab");
-  const initialTab = allowedInitialTabs.has(requestedInitialTab) ? requestedInitialTab : "home";
   const loginPanel = document.querySelector("#login-panel");
   const portal = document.querySelector("#portal");
   const globalError = document.querySelector("#global-error");
@@ -22,10 +17,6 @@
       await enterPortal();
     } catch {
       loginPanel.hidden = false;
-      if (autoDemo) {
-        document.querySelector("#demo-customer-number").value = config.DEMO_CUSTOMER_NUMBER || "DEMO-GREEN-001";
-        await demoLogin();
-      }
     }
   }
 
@@ -82,7 +73,7 @@
     loginPanel.hidden = true;
     portal.hidden = false;
     await loadOverview();
-    await openTab(initialTab);
+    await openTab("home");
   }
 
   async function logout() {
@@ -103,6 +94,15 @@
     document.querySelector("#site-count").textContent = overview.sites.length;
     document.querySelector("#issue-count").textContent = overview.activeIssues.length;
     applyFeatureVisibility();
+    renderMemberAnnouncements();
+  }
+
+
+  function renderMemberAnnouncements() {
+    const region = document.querySelector('#member-announcements');
+    const items = overview?.announcements || [];
+    region.hidden = items.length === 0;
+    region.innerHTML = items.map((item) => `<article class="green12-public-notice${item.isImportant ? ' is-important' : ''}"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body).replace(/\n/g,'<br>')}</p>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ''}</article>`).join('');
   }
 
   function applyFeatureVisibility() {

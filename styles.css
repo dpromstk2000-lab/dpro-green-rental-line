@@ -234,3 +234,7 @@ textarea { resize: vertical; min-height: 130px; }
 
 /* GREEN-9 customer replacement history */
 .replacement-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;margin:18px 0;padding:14px;border-radius:14px;background:#f1f8f3;color:#173d2b}.replacement-flow span{display:block;padding:10px 12px;border-radius:10px;background:#fff;text-align:center;font-weight:700}.replacement-flow strong{font-size:1.25rem}@media(max-width:560px){.replacement-flow{grid-template-columns:1fr}.replacement-flow strong{transform:rotate(90deg);text-align:center}}
+
+
+/* GREEN-12 public/member announcements */
+.green12-public-announcements,.green12-member-announcements{width:min(1100px,calc(100% - 32px));margin:18px auto;display:grid;gap:10px}.green12-public-notice{padding:15px 18px;border:1px solid #b9d5c2;border-radius:14px;background:#edf7f0;color:#173d2b}.green12-public-notice.is-important{border-color:#e2b36d;background:#fff6e7;color:#65430d}.green12-public-notice strong{display:block;font-size:17px}.green12-public-notice p{margin:5px 0 0;line-height:1.75}.green12-public-notice small{display:block;margin-top:7px;opacity:.78}.green12-member-announcements{margin-top:0;margin-bottom:18px}
