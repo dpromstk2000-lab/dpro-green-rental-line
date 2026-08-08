@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "DPRO-CONTACT-1-FRONTEND-FLAGS-20260808";
+  const VERSION = "DPRO-CONTACT-GREEN-PRELINE-R1-20260808";
   const CONFIG = window.DPRO_CONTACT_CONFIG || {};
   const $ = (id) => document.getElementById(id);
 
@@ -591,6 +591,35 @@
     }
 
     show("loading");
+
+    // GREEN has no dedicated LINE Official Account yet.
+    // In pre-LINE mode, show a safe preview shell without requiring an auth token.
+    // No customer data is fetched and no write operation is enabled.
+    if (!features().line) {
+      state.operator = normalizeOperator({
+        displayName: "GREEN管理者",
+        role: "owner_admin",
+        roleLabel: "管理者",
+        readOnly: true,
+      });
+      applyOperator();
+
+      setText("metricUnread", "0");
+      setText("metricOpen", "0");
+      setText("metricToday", "0");
+      setText("metricClosed", "0");
+
+      state.threads = [];
+      state.selectedThread = null;
+      state.messages = [];
+
+      show("app");
+      renderThreads();
+      clearConversation();
+      setText("topbarDescription", "LINE接続準備中");
+      document.body.dataset.contactPreview = "preline";
+      return;
+    }
 
     try {
       const loggedIn = await initializeAuth();
