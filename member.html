@@ -7,6 +7,7 @@
   <meta name="description" content="設置植物、次回訪問、作業報告を確認できるお客様マイページです。">
   <title>お客様マイページ | DPRO グリーンレンタル</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="member-visual.css?v=GREEN-MEMBER-VISUAL-1-20260808">
   <script defer src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script defer src="config.js"></script>
   <script defer src="green-common.js"></script>
@@ -19,7 +20,28 @@
   </header>
   <main id="main">
     <div id="global-error" class="alert alert-error" role="alert" hidden style="width:min(900px,calc(100% - 32px));margin:20px auto"></div>
+
     <section id="login-panel" class="login-shell" hidden>
+      <div class="member-visual-hero" aria-label="グリーンレンタルのイメージ">
+        <picture class="member-visual-hero__media">
+          <source media="(max-width: 620px)" srcset="https://dpromstk2000-lab.github.io/dpro-green-website/hero-mobile-lobby.webp">
+          <img
+            src="https://dpromstk2000-lab.github.io/dpro-green-website/owner-hero.webp"
+            width="1440"
+            height="960"
+            alt="観葉植物のある心地よい空間"
+            decoding="async"
+            fetchpriority="high">
+        </picture>
+        <div class="member-visual-hero__shade"></div>
+        <div class="member-visual-hero__copy">
+          <p>GREEN RENTAL CUSTOMER PORTAL</p>
+          <h1>空間に、<br><span>やすらぎと品格を。</span></h1>
+          <strong>ご利用中のお客様専用マイページ</strong>
+          <small>設置植物・次回訪問・作業報告・ご相談を、ひとつの画面で。</small>
+        </div>
+      </div>
+
       <div class="login-copy"><p class="eyebrow">CUSTOMER PORTAL</p><h1>植物の状態と、<br>次の訪問がひと目で。</h1><p>設置中の植物、次回の巡回、作業報告を確認できます。植物の異常や追加相談も、写真付きで送れます。</p><div class="login-feature-list"><div class="login-feature"><span>📅</span><strong>次回訪問予定を確認</strong></div><div class="login-feature"><span>🪴</span><strong>設置中の植物を確認</strong></div><div class="login-feature"><span>📷</span><strong>作業報告・公開写真を確認</strong></div></div></div>
       <div class="login-card"><p class="eyebrow">LOGIN</p><h2>マイページを開く</h2><p class="label-note">本番ではLINE本人確認後、確認済みのお客様情報だけを表示します。</p><button id="line-login" class="button button-primary" type="button">LINEで本人確認して開く</button><div class="divider">デモ確認</div><label>デモ顧客番号<input id="demo-customer-number" value="DEMO-GREEN-001" autocomplete="off"></label><button id="demo-login" class="button button-secondary" type="button">デモマイページを開く</button><p class="label-note">デモ基本データはGREEN-10で準備します。準備前はログインできません。</p></div>
     </section>
