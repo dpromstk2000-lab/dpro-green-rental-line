@@ -1,11 +1,11 @@
 /**
- * DPRO CUSTOMER HERO V1.0
- * Lightweight shared customer-facing hero.
+ * DPRO CUSTOMER HERO V2.0
+ * Shared customer-facing hero with safe owner-config override.
  */
 (() => {
   "use strict";
 
-  const VERSION = "DPRO-CUSTOMER-HERO-1.0-20260808";
+  const VERSION = "DPRO-CUSTOMER-HERO-2.0-20260808";
   const LIMITS = Object.freeze({ eyebrow: 24, title: 30, badge: 30, lead: 70 });
 
   const text = (value, max) => {
@@ -25,7 +25,7 @@
     }
   };
 
-  const config = () => {
+  const baseConfig = () => {
     const raw = window.DPRO_CUSTOMER_HERO_CONFIG || {};
     return {
       enabled: raw.enabled !== false,
@@ -36,6 +36,40 @@
       badge: text(raw.badge, LIMITS.badge),
       lead: text(raw.lead, LIMITS.lead),
       alt: text(raw.alt || "店舗イメージ", 60),
+    };
+  };
+
+  const fetchOwnerOverride = async () => {
+    const app = window.GREEN_CONFIG || {};
+    if (!app.API_BASE) return null;
+    try {
+      const response = await fetch(`${app.API_BASE}/api/public/customer-hero`, {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      return payload?.data?.hero || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const mergedConfig = async () => {
+    const base = baseConfig();
+    const remote = await fetchOwnerOverride();
+    if (!remote?.configured) return base;
+
+    const image = validUrl(remote.image);
+    return {
+      ...base,
+      enabled: typeof remote.enabled === "boolean" ? remote.enabled : base.enabled,
+      desktopImage: image || base.desktopImage,
+      mobileImage: image || base.mobileImage || base.desktopImage,
+      title: text(remote.title, LIMITS.title) || base.title,
+      lead: text(remote.lead, LIMITS.lead) || base.lead,
     };
   };
 
@@ -64,10 +98,8 @@
       const sy = isMobile ? Math.floor(sh * 0.48) : 0;
       const sampleW = isMobile ? sw : Math.max(1, Math.floor(sw * 0.58));
       const sampleH = isMobile ? Math.max(1, sh - sy) : sh;
-
       ctx.drawImage(img, sx, sy, sampleW, sampleH, 0, 0, size, size);
       const pixels = ctx.getImageData(0, 0, size, size).data;
-
       let sum = 0;
       let count = 0;
       for (let i = 0; i < pixels.length; i += 16) {
@@ -83,11 +115,10 @@
     }
   };
 
-  const render = () => {
+  const render = async () => {
     const host = document.querySelector("[data-dpro-customer-hero]");
     if (!host) return;
-
-    const cfg = config();
+    const cfg = await mergedConfig();
     host.replaceChildren();
     host.dataset.dproCustomerHeroVersion = VERSION;
 
@@ -95,7 +126,6 @@
       host.hidden = true;
       return;
     }
-
     host.hidden = false;
 
     const root = document.createElement("section");
@@ -105,14 +135,12 @@
 
     const picture = document.createElement("picture");
     picture.className = "dpro-customer-hero__media";
-
     if (cfg.mobileImage) {
       const source = document.createElement("source");
       source.media = "(max-width: 620px)";
       source.srcset = cfg.mobileImage;
       picture.appendChild(source);
     }
-
     const img = document.createElement("img");
     img.src = cfg.desktopImage;
     img.alt = cfg.alt;
@@ -124,7 +152,6 @@
     const shade = document.createElement("div");
     shade.className = "dpro-customer-hero__shade";
     shade.setAttribute("aria-hidden", "true");
-
     const copy = document.createElement("div");
     copy.className = "dpro-customer-hero__copy";
 
@@ -156,11 +183,8 @@
     host.appendChild(root);
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", render, { once: true });
-  } else {
-    render();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => { void render(); }, { once: true });
+  else void render();
 
   window.DPRO_CUSTOMER_HERO = Object.freeze({ version: VERSION, render, limits: LIMITS });
 })();

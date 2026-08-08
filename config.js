@@ -1,4 +1,4 @@
-/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-V1 */
+/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 */
 window.GREEN_CONFIG = Object.freeze({
   API_BASE: "https://dpro-green-rental-line-api.dpromstk2000.workers.dev",
   FACILITY_CODE: "dpro_green_rental_demo",
@@ -26,6 +26,8 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
 
 (() => {
   "use strict";
+  const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
+
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
     if (!/\/owner\.html$/.test(location.pathname)) return;
@@ -43,9 +45,30 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     if (inquiryButton) inquiryButton.insertAdjacentElement("afterend", button);
     else nav.prepend(button);
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", installContactMenu, { once: true });
-  } else {
-    installContactMenu();
+
+  function installCustomerHeroAdmin() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (!document.querySelector('link[data-customer-hero-admin]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `customer-hero-admin.css?v=${encodeURIComponent(HERO_ADMIN_VERSION)}`;
+      link.dataset.customerHeroAdmin = HERO_ADMIN_VERSION;
+      document.head.append(link);
+    }
+    if (!document.querySelector('script[data-customer-hero-admin]')) {
+      const script = document.createElement("script");
+      script.src = `customer-hero-admin.js?v=${encodeURIComponent(HERO_ADMIN_VERSION)}`;
+      script.defer = true;
+      script.dataset.customerHeroAdmin = HERO_ADMIN_VERSION;
+      document.head.append(script);
+    }
   }
+
+  function boot() {
+    installContactMenu();
+    installCustomerHeroAdmin();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+  else boot();
 })();
