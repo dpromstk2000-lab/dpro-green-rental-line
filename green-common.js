@@ -36,6 +36,31 @@
   }
 
   async function api(path, options = {}) {
+    const autoDemo = new URLSearchParams(location.search).get("demo") === "1"
+      && config.FACILITY_CODE === "dpro_green_rental_demo";
+
+    // READY V1.0: In explicit demo mode, restore by demo login directly.
+    // This avoids an expected 401 /session probe being left as a red Console error.
+    // Production URLs (without ?demo=1) keep the existing /session restore flow unchanged.
+    if (autoDemo && options.skipDemoRestore !== true && path === "/api/admin/session") {
+      return api("/api/admin/login", {
+        method: "POST",
+        json: { facilityCode: config.FACILITY_CODE, code: "1234" },
+        skipDemoRestore: true,
+      });
+    }
+    if (autoDemo && options.skipDemoRestore !== true && path === "/api/staff/session") {
+      return api("/api/staff/login", {
+        method: "POST",
+        json: {
+          facilityCode: config.FACILITY_CODE,
+          staffCode: "DEMO-YAMAMOTO",
+          code: "1234",
+        },
+        skipDemoRestore: true,
+      });
+    }
+
     const headers = new Headers(options.headers || {});
     if (options.json !== undefined) headers.set("Content-Type", "application/json");
     if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey);
