@@ -64,9 +64,29 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     }
   }
 
+  function installTutorialRuntime() {
+    if (document.documentElement.dataset.dproTutorialRuntime === "green-r3") return;
+    document.documentElement.dataset.dproTutorialRuntime = "green-r3";
+    if (!document.querySelector('link[data-dpro-tutorial-green]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "dpro-tutorial-green.css?v=GREEN-TUTORIAL-R3-20260822";
+      link.dataset.dproTutorialGreen = "R3";
+      document.head.append(link);
+    }
+    if (!document.querySelector('script[data-dpro-tutorial-green]')) {
+      const script = document.createElement("script");
+      script.src = "dpro-tutorial-green.js?v=GREEN-TUTORIAL-R3-20260822";
+      script.defer = true;
+      script.dataset.dproTutorialGreen = "R3";
+      document.head.append(script);
+    }
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
+    installTutorialRuntime();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
