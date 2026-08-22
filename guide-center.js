@@ -1,13 +1,13 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-GUIDE-R4-20260822";
+  const VERSION = "GREEN-GUIDE-R4.1-20260822";
   const CONTENT_URL = "dpro-tutorial-content-green.json?v=GREEN-R2-LOCK-20260822";
   const STATE_KEY = "dpro:tutorial:green:first10:v1";
   const $ = (s, root=document) => root.querySelector(s);
   const state = { content:null, category:"all", query:"" };
 
   function esc(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));}
-  function safeJson(raw,fallback){try{return JSON.parse(raw)}catch{return fallback}}
+  function safeJson(raw,fallback){if(raw==null||raw==="")return fallback;try{const value=JSON.parse(raw);return value&&typeof value==="object"?value:fallback}catch{return fallback}}
   function readFirst10(){return safeJson(localStorage.getItem(STATE_KEY),{index:0,active:false,completed:false,skipped:[]});}
   function writeFirst10(v){localStorage.setItem(STATE_KEY,JSON.stringify(v));}
   function qs(extra={}){const p=new URLSearchParams();if(new URLSearchParams(location.search).get("demo")==="1")p.set("demo","1");Object.entries(extra).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")p.set(k,String(v));});const s=p.toString();return s?`?${s}`:"";}

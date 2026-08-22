@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-TUTORIAL-R3-20260822";
+  const VERSION = "GREEN-TUTORIAL-R3.1-20260822";
   const CONTENT_URL = "dpro-tutorial-content-green.json?v=GREEN-R2-LOCK-20260822";
   const STATE_KEY = "dpro:tutorial:green:first10:v1";
   const TARGETS = Object.freeze({
@@ -51,7 +51,7 @@
     Object.entries(extra).forEach(([k,v]) => v == null ? q.delete(k) : q.set(k, String(v)));
     const s = q.toString(); return s ? `?${s}` : "";
   }
-  function safeJson(raw, fallback) { try { return JSON.parse(raw); } catch { return fallback; } }
+  function safeJson(raw, fallback) { if (raw == null || raw === "") return fallback; try { const value = JSON.parse(raw); return value && typeof value === "object" ? value : fallback; } catch { return fallback; } }
   function readState() { return safeJson(localStorage.getItem(STATE_KEY), { index:0, active:false, completed:false, skipped:[] }); }
   function writeState(next) { localStorage.setItem(STATE_KEY, JSON.stringify(next)); return next; }
   function currentCards() { return content?.first10?.cards || []; }
