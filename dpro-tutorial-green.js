@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-TUTORIAL-R3.1-20260822";
+  const VERSION = "GREEN-TUTORIAL-V1.1-DRAG-20260823";
   const CONTENT_URL = "dpro-tutorial-content-green.json?v=GREEN-R2-LOCK-20260822";
   const STATE_KEY = "dpro:tutorial:green:first10:v1";
   const TARGETS = Object.freeze({
@@ -43,6 +43,7 @@
   let cardEl = null;
   let targetEl = null;
   let menuEl = null;
+  let dragState = null;
 
   function routeName() { return location.pathname.split("/").pop() || "index.html"; }
   function queryWith(extra = {}) {
@@ -100,7 +101,91 @@
     return { found:true, el };
   }
 
+  function endCardDrag(pointerId = null) {
+    if (!dragState) return;
+    if (pointerId != null && dragState.pointerId !== pointerId) return;
+    const { handle, pointerId: activePointerId } = dragState;
+    dragState = null;
+    cardEl?.classList.remove("is-dragging");
+    try {
+      if (handle?.hasPointerCapture?.(activePointerId)) handle.releasePointerCapture(activePointerId);
+    } catch {}
+  }
+
+  function viewportBox() {
+    const vv = window.visualViewport;
+    return {
+      left: vv?.offsetLeft || 0,
+      top: vv?.offsetTop || 0,
+      width: vv?.width || window.innerWidth,
+      height: vv?.height || window.innerHeight
+    };
+  }
+
+  function clampCardToViewport(el = cardEl, preferredLeft = null, preferredTop = null) {
+    if (!el) return null;
+    const margin = window.matchMedia("(max-width:640px)").matches ? 8 : 12;
+    const viewport = viewportBox();
+    const rect = el.getBoundingClientRect();
+    const maxWidth = Math.max(160, viewport.width - margin * 2);
+    if (rect.width > maxWidth) el.style.width = `${maxWidth}px`;
+    const nextRect = el.getBoundingClientRect();
+    const maxLeft = viewport.left + Math.max(margin, viewport.width - nextRect.width - margin);
+    const maxTop = viewport.top + Math.max(margin, viewport.height - nextRect.height - margin);
+    const rawLeft = preferredLeft == null ? nextRect.left : preferredLeft;
+    const rawTop = preferredTop == null ? nextRect.top : preferredTop;
+    const left = Math.min(Math.max(rawLeft, viewport.left + margin), maxLeft);
+    const top = Math.min(Math.max(rawTop, viewport.top + margin), maxTop);
+    el.style.left = `${Math.round(left)}px`;
+    el.style.top = `${Math.round(top)}px`;
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    return { left, top, margin, viewport, rect: nextRect };
+  }
+
+  function enableCardDrag(el) {
+    const handle = el?.querySelector("[data-drag-handle]");
+    if (!handle) return;
+    handle.addEventListener("pointerdown", event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      const rect = el.getBoundingClientRect();
+      el.style.width = `${Math.min(rect.width, viewportBox().width - 16)}px`;
+      el.style.left = `${rect.left}px`;
+      el.style.top = `${rect.top}px`;
+      el.style.right = "auto";
+      el.style.bottom = "auto";
+      el.classList.remove("is-top");
+      el.classList.add("is-dragging", "is-dragged");
+      dragState = {
+        pointerId: event.pointerId,
+        handle,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+      try { handle.setPointerCapture(event.pointerId); } catch {}
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    handle.addEventListener("pointermove", event => {
+      if (!dragState || dragState.pointerId !== event.pointerId || cardEl !== el) return;
+      clampCardToViewport(el, event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    const finish = event => {
+      if (!dragState || dragState.pointerId !== event.pointerId) return;
+      clampCardToViewport(el);
+      endCardDrag(event.pointerId);
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    handle.addEventListener("pointerup", finish);
+    handle.addEventListener("pointercancel", finish);
+    handle.addEventListener("lostpointercapture", event => endCardDrag(event.pointerId));
+  }
+
   function closeCard(preserve = true) {
+    endCardDrag();
     clearTarget();
     cardEl?.remove(); cardEl = null;
     if (preserve) { const st = readState(); st.active = false; writeState(st); }
@@ -129,7 +214,7 @@
     el.setAttribute("role","dialog"); el.setAttribute("aria-modal","false"); el.setAttribute("aria-labelledby","dpro-guide-title");
     const skipped = st.skipped?.includes(card.id);
     el.innerHTML = `<div class="dpro-guide-card__inner">
-      <div class="dpro-guide-card__meta"><span>FIRST 10 MINUTES</span><span>${safeIndex+1} / ${cards.length}</span></div>
+      <div class="dpro-guide-card__meta"><span>FIRST 10 MINUTES</span><span class="dpro-guide-card__drag-handle" data-drag-handle aria-label="説明カードを移動">↕ 移動</span><span>${safeIndex+1} / ${cards.length}</span></div>
       <div class="dpro-guide-card__chapter">${escapeHtml(chapter?.title || "操作ガイド")}</div>
       <h2 id="dpro-guide-title">${escapeHtml(card.title)}</h2>
       <p>${escapeHtml(card.body)}</p>
@@ -144,6 +229,8 @@
       <div class="dpro-guide-card__tools"><button type="button" data-close>閉じる（続きから再開）</button><button type="button" data-replay>最初から</button><button type="button" data-guide>Guide Center</button></div>
     </div>`;
     document.body.append(el); cardEl = el;
+    dragState = null;
+    enableCardDrag(el);
     el.querySelector("[data-back]")?.addEventListener("click",()=>goTo(safeIndex-1));
     el.querySelector("[data-next]")?.addEventListener("click",()=>{ if(safeIndex===cards.length-1){const s=readState();s.active=false;s.completed=true;s.index=cards.length-1;writeState(s);closeCard(false);openMenu();}else goTo(safeIndex+1); });
     el.querySelector("[data-skip]")?.addEventListener("click",()=>{const s=readState();s.skipped=Array.from(new Set([...(s.skipped||[]),card.id]));writeState(s); if(safeIndex===cards.length-1){s.active=false;s.completed=true;writeState(s);closeCard(false);}else goTo(safeIndex+1);});
@@ -187,6 +274,9 @@
     const q=new URLSearchParams(location.search); const s=readState();
     if(q.get("dpro_tutorial")==="1" || s.active) renderCard(s.index||0);
     document.addEventListener("keydown",e=>{if(e.key==="Escape"&&cardEl){e.preventDefault();closeCard(true);}});
+    window.addEventListener("resize",()=>{ if(cardEl?.classList.contains("is-dragged")) clampCardToViewport(cardEl); },{passive:true});
+    window.addEventListener("orientationchange",()=>setTimeout(()=>{ if(cardEl?.classList.contains("is-dragged")) clampCardToViewport(cardEl); },80),{passive:true});
+    window.visualViewport?.addEventListener("resize",()=>{ if(cardEl?.classList.contains("is-dragged")) clampCardToViewport(cardEl); },{passive:true});
     window.DPRO_TUTORIAL_GREEN=Object.freeze({version:VERSION,start,resume,replay,openGuide:()=>routeTo("guide-center.html")});
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true}); else init();
