@@ -1,4 +1,4 @@
-/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1.2 */
+/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1.2 / OWNER-FLOW-R1 */
 window.GREEN_CONFIG = Object.freeze({
   API_BASE: "https://dpro-green-rental-line-api.dpromstk2000.workers.dev",
   FACILITY_CODE: "dpro_green_rental_demo",
@@ -33,6 +33,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   "use strict";
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
+  const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.0-20260831";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -42,14 +43,15 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     const button = document.createElement("button");
     button.type = "button";
     button.id = "green-contact-menu";
-    button.innerHTML = "<span>話</span>顧客対応 NEW";
-    button.setAttribute("aria-label", "LINE顧客対応を開く");
+    button.innerHTML = "<span>話</span>LINE・顧客対応";
+    button.setAttribute("aria-label", "LINEで継続中のお客様対応を開く");
+    button.title = "LINEで継続中の会話を確認・返信";
     button.addEventListener("click", () => {
       location.href = window.GREEN_CONFIG.CONTACT_URL || "contact-green.html";
     });
-    const inquiryButton = nav.querySelector('[data-view="inquiries"]');
-    if (inquiryButton) inquiryButton.insertAdjacentElement("afterend", button);
-    else nav.prepend(button);
+    const messageButton = nav.querySelector('[data-view="messages"]');
+    if (messageButton) nav.insertBefore(button, messageButton);
+    else nav.append(button);
   }
 
   function installCustomerHeroAdmin() {
@@ -100,11 +102,30 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+  function installOwnerFlowClarity() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (!document.querySelector('link[data-green-owner-flow]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `green-owner-flow.css?v=${encodeURIComponent(OWNER_FLOW_VERSION)}`;
+      link.dataset.greenOwnerFlow = OWNER_FLOW_VERSION;
+      document.head.append(link);
+    }
+    if (!document.querySelector('script[data-green-owner-flow]')) {
+      const script = document.createElement("script");
+      script.src = `green-owner-flow.js?v=${encodeURIComponent(OWNER_FLOW_VERSION)}`;
+      script.defer = true;
+      script.dataset.greenOwnerFlow = OWNER_FLOW_VERSION;
+      document.head.append(script);
+    }
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
     installTutorialRuntime();
     installShopModule();
+    installOwnerFlowClarity();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
