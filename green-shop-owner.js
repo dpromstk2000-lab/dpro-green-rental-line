@@ -1,18 +1,18 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-SHOP-OWNER-R1-20260831";
+  const VERSION = "GREEN-SHOP-OWNER-R1.1-20260831";
   const SETTINGS_KEY = "dpro_green_shop_settings_v1";
   const PRODUCTS_KEY = "dpro_green_shop_products_v1";
   const ORDERS_KEY = "dpro_green_shop_orders_v1";
   const SHOP_URL = window.GREEN_CONFIG?.SHOP_MODULE?.websiteUrl || "https://dpromstk2000-lab.github.io/dpro-green-website/shop.html";
   const defaultSettings = Object.freeze({ enabled: true, onlineShop: true, delivery: true, pickup: true, gift: true, square: true });
   const defaultProducts = [
-    {id:"desk-green",name:"デスクグリーン S",category:"観葉植物",price:3300,stock:8,image:"owner-office.webp",description:"受付・デスク周りに置きやすいコンパクトなグリーン。",lead:"発送目安 3〜5営業日",published:true},
-    {id:"pot-set",name:"グリーン＆鉢カバーセット",category:"セット",price:4950,stock:6,image:"owner-store.webp",description:"小型グリーンとインテリアになじむ鉢カバーのセット。",lead:"発送目安 3〜5営業日",published:true},
-    {id:"gift-medium",name:"グリーンギフト M",category:"ギフト",price:6600,stock:5,image:"owner-clinic-green.webp",description:"開店・移転・お祝いを想定したグリーンギフト。",lead:"発送目安 5〜7営業日",published:true},
-    {id:"cover",name:"インテリア鉢カバー",category:"鉢・カバー",price:3850,stock:12,image:"owner-hero.webp",description:"オフィスや店舗空間に合わせやすい鉢カバー。",lead:"発送目安 3〜5営業日",published:true},
-    {id:"care",name:"植物ケア スターターセット",category:"ケア用品",price:2200,stock:15,image:"owner-maintenance.webp",description:"ご自宅・オフィスでの簡単なお手入れを始める方向け。",lead:"発送目安 2〜4営業日",published:true},
-    {id:"season",name:"季節のグリーンギフト",category:"ギフト",price:5500,stock:4,image:"owner-welfare-green.webp",description:"季節に合わせてセレクトする提案用ギフト商品。",lead:"発送目安 5〜7営業日",published:true}
+    {id:"pachira-6",name:"パキラ 6号（鉢カバー付き）",category:"観葉植物",price:6600,stock:6,image:"owner-office.webp",description:"オフィスやご自宅に置きやすい定番の観葉植物。6号鉢にインテリアになじむ鉢カバーを合わせた販売イメージです。",lead:"発送目安 3〜5営業日",published:true},
+    {id:"monstera-8",name:"モンステラ 8号（鉢カバー付き）",category:"観葉植物",price:11000,stock:4,image:"owner-store.webp",description:"存在感のある葉が人気のモンステラ。受付・店舗・リビングにも合わせやすい8号サイズです。",lead:"発送目安 5〜7営業日",published:true},
+    {id:"strelitzia-6",name:"ストレリチア・オーガスタ 6号",category:"観葉植物",price:5500,stock:6,image:"owner-clinic-green.webp",description:"大きく伸びる葉が印象的なオーガスタ。明るい室内のアクセントとして人気の中型サイズです。",lead:"発送目安 3〜5営業日",published:true},
+    {id:"sansevieria-6",name:"サンセベリア 6号（鉢カバー付き）",category:"観葉植物",price:5500,stock:8,image:"owner-hero.webp",description:"シャープな葉姿で省スペースにも置きやすい定番グリーン。オフィスや店舗の入口にもおすすめです。",lead:"発送目安 3〜5営業日",published:true},
+    {id:"benjamin-8",name:"ベンジャミン 8号（鉢カバー付き）",category:"ギフト",price:12100,stock:3,image:"owner-maintenance.webp",description:"やわらかな樹形で空間になじみやすいベンジャミン。開店・移転・新築祝いにも使いやすい8号サイズです。",lead:"発送目安 5〜7営業日",published:true},
+    {id:"yucca-8",name:"ユッカ 8号（鉢カバー付き）",category:"ギフト",price:13200,stock:3,image:"owner-welfare-green.webp",description:"力強い樹形が特徴のユッカ。オフィス・店舗のシンボルグリーンや法人ギフトを想定した8号サイズです。",lead:"発送目安 5〜7営業日",published:true}
   ];
   const imageBase = "https://dpromstk2000-lab.github.io/dpro-green-website/";
   const $ = (s, root=document) => root.querySelector(s);
@@ -21,7 +21,9 @@
   const yen = (n) => new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(n)||0);
   function readJSON(key, fallback){ try { const v=JSON.parse(localStorage.getItem(key)||"null"); return v ?? fallback; } catch { return fallback; } }
   function settings(){ return {...defaultSettings, ...readJSON(SETTINGS_KEY,{})}; }
-  function products(){ const saved=readJSON(PRODUCTS_KEY,null); if(Array.isArray(saved)) return saved; localStorage.setItem(PRODUCTS_KEY,JSON.stringify(defaultProducts)); return [...defaultProducts]; }
+  const LEGACY_PRODUCT_IDS = new Set(["desk-green","pot-set","gift-medium","cover","care","season"]);
+  function isLegacySeed(items){ return Array.isArray(items) && items.length===6 && items.every(x=>LEGACY_PRODUCT_IDS.has(x?.id)); }
+  function products(){ const saved=readJSON(PRODUCTS_KEY,null); if(Array.isArray(saved)){ if(isLegacySeed(saved)){ localStorage.setItem(PRODUCTS_KEY,JSON.stringify(defaultProducts)); return [...defaultProducts]; } return saved; } localStorage.setItem(PRODUCTS_KEY,JSON.stringify(defaultProducts)); return [...defaultProducts]; }
   function orders(){ const saved=readJSON(ORDERS_KEY,[]); return Array.isArray(saved)?saved:[]; }
   function saveSettings(next){ localStorage.setItem(SETTINGS_KEY,JSON.stringify({...defaultSettings,...next})); notify(); }
   function saveProducts(items){ localStorage.setItem(PRODUCTS_KEY,JSON.stringify(items)); notify(); }
