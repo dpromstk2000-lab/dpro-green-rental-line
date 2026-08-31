@@ -1,4 +1,4 @@
-/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 */
+/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1 */
 window.GREEN_CONFIG = Object.freeze({
   API_BASE: "https://dpro-green-rental-line-api.dpromstk2000.workers.dev",
   FACILITY_CODE: "dpro_green_rental_demo",
@@ -10,6 +10,11 @@ window.GREEN_CONFIG = Object.freeze({
   JPEG_QUALITY: 0.82,
   CONTACT_ENABLED: true,
   CONTACT_URL: "contact-green.html",
+  SHOP_MODULE: Object.freeze({
+    enabled: true,
+    websiteUrl: "https://dpromstk2000-lab.github.io/dpro-green-website/shop.html",
+    storageMode: "demo-local",
+  }),
   CUSTOMER_HERO: Object.freeze({
     enabled: true,
     desktopImage: "https://dpromstk2000-lab.github.io/dpro-green-website/owner-hero.webp",
@@ -27,6 +32,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
 (() => {
   "use strict";
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
+  const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1-20260831";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -83,10 +89,22 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     }
   }
 
+  function installShopModule() {
+    if (!window.GREEN_CONFIG?.SHOP_MODULE?.enabled) return;
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (document.querySelector('script[data-green-shop-owner]')) return;
+    const script = document.createElement("script");
+    script.src = `green-shop-owner.js?v=${encodeURIComponent(SHOP_OWNER_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenShopOwner = SHOP_OWNER_VERSION;
+    document.head.append(script);
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
     installTutorialRuntime();
+    installShopModule();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
