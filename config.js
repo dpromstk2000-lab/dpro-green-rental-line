@@ -1,4 +1,4 @@
-/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1 */
+/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1.2 */
 window.GREEN_CONFIG = Object.freeze({
   API_BASE: "https://dpro-green-rental-line-api.dpromstk2000.workers.dev",
   FACILITY_CODE: "dpro_green_rental_demo",
@@ -32,7 +32,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
 (() => {
   "use strict";
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
-  const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.1-20260831";
+  const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
