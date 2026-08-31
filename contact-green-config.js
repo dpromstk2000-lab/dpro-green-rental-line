@@ -1,10 +1,10 @@
 /**
  * DPRO GREEN RENTAL × DPRO CONTACT
- * CONTACT-V1-7-GREEN-1
+ * CONTACT-V1-7-GREEN-1 / OWNER-FLOW-R1.1
  * PUBLIC config only. Never store Secrets here.
  */
 window.DPRO_CONTACT_CONFIG = Object.freeze({
-  version: "DPRO-CONTACT-1-FRONTEND-FLAGS-20260808",
+  version: "DPRO-CONTACT-1-OWNER-FLOW-R1.1-20260831",
   enabled: true,
   features: {
     line: false,
@@ -25,9 +25,9 @@ window.DPRO_CONTACT_CONFIG = Object.freeze({
     brandName: "DPRO GREEN",
     systemName: "GREEN RENTAL / CONTACT",
     brandMark: "葉",
-    pageTitle: "LINE問い合わせを\nGREEN管理画面で完結",
-    pageLead: "グリーンレンタルのお客様から届いたLINE問い合わせを確認し、そのまま返信できます。",
-    topbarDescription: "LINE問い合わせ・顧客対応",
+    pageTitle: "LINEでの継続対応を\nひとつに",
+    pageLead: "相談受付後や契約中のお客様とのLINE会話を確認し、そのまま返信できます。新しい相談の一覧はGREEN管理画面の「相談受付」で確認します。",
+    topbarDescription: "LINEで継続中の会話を確認・返信",
     channelName: "GREEN RENTAL LINE公式",
     homeUrl: "owner.html",
     homeLabel: "GREEN管理画面",

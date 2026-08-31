@@ -102,6 +102,44 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+  function installContactFlowCopy() {
+    if (!/\/contact-green\.html$/.test(location.pathname)) return;
+
+    const apply = () => {
+      const pageTitle = document.getElementById("pageTitle");
+      const pageLead = document.getElementById("pageLead");
+      const topDescription = document.getElementById("topbarDescription");
+
+      if (pageTitle) pageTitle.textContent = "LINEでの継続対応をひとつに";
+      if (pageLead) {
+        const preparing = window.DPRO_CONTACT_CONFIG?.features?.line === false;
+        pageLead.textContent = preparing
+          ? "現在はLINE公式アカウント接続前の準備モードです。接続後は、相談受付後や契約中のお客様とのLINE会話をこの画面で確認・返信できます。"
+          : "相談受付後や契約中のお客様とのLINE会話を確認し、そのまま返信できます。新しい相談の一覧はGREEN管理画面の「相談受付」で確認します。";
+      }
+      if (topDescription && window.DPRO_CONTACT_CONFIG?.features?.line !== false) {
+        topDescription.textContent = "LINEで継続中の会話を確認・返信";
+      }
+    };
+
+    const start = () => {
+      apply();
+      const target = document.getElementById("app") || document.body;
+      if (!target) return;
+      const observer = new MutationObserver(() => {
+        clearTimeout(start._timer);
+        start._timer = setTimeout(apply, 10);
+      });
+      observer.observe(target, { childList: true, subtree: true, characterData: true });
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => setTimeout(start, 0), { once: true });
+    } else {
+      setTimeout(start, 0);
+    }
+  }
+
   function installOwnerFlowClarity() {
     if (!/\/owner\.html$/.test(location.pathname)) return;
     if (!document.querySelector('link[data-green-owner-flow]')) {
@@ -126,6 +164,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installTutorialRuntime();
     installShopModule();
     installOwnerFlowClarity();
+    installContactFlowCopy();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
