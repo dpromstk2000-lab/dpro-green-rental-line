@@ -33,7 +33,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   "use strict";
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
-  const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.0-20260831";
+  const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -105,20 +105,27 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   function installContactFlowCopy() {
     if (!/\/contact-green\.html$/.test(location.pathname)) return;
 
+    const setTextIfChanged = (element, text) => {
+      if (element && element.textContent !== text) element.textContent = text;
+    };
+
     const apply = () => {
       const pageTitle = document.getElementById("pageTitle");
       const pageLead = document.getElementById("pageLead");
       const topDescription = document.getElementById("topbarDescription");
 
-      if (pageTitle) pageTitle.textContent = "LINEでの継続対応をひとつに";
+      setTextIfChanged(pageTitle, "LINEでの継続対応をひとつに");
       if (pageLead) {
         const preparing = window.DPRO_CONTACT_CONFIG?.features?.line === false;
-        pageLead.textContent = preparing
-          ? "現在はLINE公式アカウント接続前の準備モードです。接続後は、相談受付後や契約中のお客様とのLINE会話をこの画面で確認・返信できます。"
-          : "相談受付後や契約中のお客様とのLINE会話を確認し、そのまま返信できます。新しい相談の一覧はGREEN管理画面の「相談受付」で確認します。";
+        setTextIfChanged(
+          pageLead,
+          preparing
+            ? "現在はLINE公式アカウント接続前の準備モードです。接続後は、相談受付後や契約中のお客様とのLINE会話をこの画面で確認・返信できます。"
+            : "相談受付後や契約中のお客様とのLINE会話を確認し、そのまま返信できます。新しい相談の一覧はGREEN管理画面の「相談受付」で確認します。"
+        );
       }
-      if (topDescription && window.DPRO_CONTACT_CONFIG?.features?.line !== false) {
-        topDescription.textContent = "LINEで継続中の会話を確認・返信";
+      if (window.DPRO_CONTACT_CONFIG?.features?.line !== false) {
+        setTextIfChanged(topDescription, "LINEで継続中の会話を確認・返信");
       }
     };
 

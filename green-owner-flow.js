@@ -1,9 +1,12 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-FLOW-R1.0-20260831";
+  const VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+  const setTextIfChanged = (element, text) => {
+    if (element && element.textContent !== text) element.textContent = text;
+  };
 
   const VIEW_TEXT = Object.freeze({
     inquiries: {
@@ -289,25 +292,25 @@
       if (text === "問い合わせ詳細") text = "相談受付詳細";
       else if (text === "電話問い合わせを登録") text = "電話相談を登録";
       else if (text.startsWith("問い合わせ ")) text = text.replace(/^問い合わせ /, "相談受付 ");
-      title.textContent = text;
+      setTextIfChanged(title, text);
     }
 
     if (kicker) {
-      if (kicker.textContent.trim() === "INQUIRY DETAIL") kicker.textContent = "INTAKE DETAIL";
-      if (kicker.textContent.trim() === "PHONE INQUIRY") kicker.textContent = "PHONE INTAKE";
+      if (kicker.textContent.trim() === "INQUIRY DETAIL") setTextIfChanged(kicker, "INTAKE DETAIL");
+      if (kicker.textContent.trim() === "PHONE INQUIRY") setTextIfChanged(kicker, "PHONE INTAKE");
     }
 
     const createLead = $("#create-lead-from-inquiry");
     const createCustomer = $("#create-customer-from-inquiry");
     if (createLead) {
-      createLead.textContent = "営業案件へ引き継ぐ";
+      setTextIfChanged(createLead, "営業案件へ引き継ぐ");
       createLead.classList.remove("btn--secondary");
       createLead.classList.add("btn--primary");
     }
-    if (createCustomer) createCustomer.textContent = "顧客台帳へ登録";
+    if (createCustomer) setTextIfChanged(createCustomer, "顧客台帳へ登録");
 
     const saveInquiry = $("#save-inquiry");
-    if (saveInquiry) saveInquiry.textContent = "相談内容を保存";
+    if (saveInquiry) setTextIfChanged(saveInquiry, "相談内容を保存");
 
     if (createLead && !$("#green-inquiry-handoff-note")) {
       const actions = createLead.closest(".owner-dialog-actions");
@@ -328,9 +331,11 @@
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach((node) => {
-      node.nodeValue = node.nodeValue
+      const current = node.nodeValue || "";
+      const next = current
         .replaceAll("問い合わせを更新しました", "相談受付を更新しました")
         .replaceAll("問い合わせ", "相談");
+      if (next !== current) node.nodeValue = next;
     });
   }
 
@@ -346,7 +351,7 @@
           .replaceAll("営業対応", "営業案件")
           .replaceAll("「顧客」", "「顧客台帳」")
           .replaceAll("顧客対応", "LINE・顧客対応");
-        node.nodeValue = text;
+        if (text !== node.nodeValue) node.nodeValue = text;
       });
     });
   }
