@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.5-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.6-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -434,6 +434,218 @@
     }, true);
   }
 
+  function ensureSiteCheckHelp() {
+    const form = $("#site-check-form", dialog);
+    const save = $("#save-site-check", dialog);
+    if (!form || !save || save.textContent.trim() !== "登録") return;
+
+    if (!$("#green-site-check-guidance", form)) {
+      const guidance = document.createElement("div");
+      guidance.id = "green-site-check-guidance";
+      guidance.className = "green-owner-guidance full";
+      guidance.innerHTML = "<strong>現地確認を登録します</strong><span>営業案件が選択されていれば、成約前は顧客・拠点が未登録でも進められます。顧客台帳・拠点は成約後に正式登録できます。</span>";
+      form.prepend(guidance);
+    }
+
+    const customer = $('[name="customerId"]', form);
+    const site = $('[name="siteId"]', form);
+    [customer, site].forEach((input) => {
+      const label = input?.closest("label");
+      if (!label || label.querySelector(".green-owner-optional-note")) return;
+      const note = document.createElement("span");
+      note.className = "green-owner-schedule-note green-owner-optional-note";
+      note.textContent = "営業案件を選択済みなら任意";
+      label.append(note);
+    });
+  }
+
+  function applySiteCheckRules() {
+    const form = $("#site-check-form", dialog);
+    const save = $("#save-site-check", dialog);
+    if (!form || !save || save.textContent.trim() !== "登録") return;
+
+    const start = $('[name="scheduledStart"]', form);
+    const end = $('[name="scheduledEnd"]', form);
+    const min = nextQuarterValue();
+
+    if (start) {
+      start.step = "900";
+      start.min = min;
+      start.title = "現在以降を15分単位で選択してください。";
+      const label = start.closest("label");
+      if (label && !label.querySelector(".green-site-start-note")) {
+        const note = document.createElement("span");
+        note.className = "green-owner-schedule-note green-site-start-note";
+        note.textContent = "現在以降・15分刻み";
+        label.append(note);
+      }
+    }
+
+    if (end) {
+      end.step = "900";
+      end.min = start?.value || min;
+      end.title = "開始日時より後を15分単位で選択してください。";
+      const label = end.closest("label");
+      if (label && !label.querySelector(".green-site-end-note")) {
+        const note = document.createElement("span");
+        note.className = "green-owner-schedule-note green-site-end-note";
+        note.textContent = "開始より後・15分刻み";
+        label.append(note);
+      }
+    }
+
+    if (start && start.dataset.greenSiteBound !== "1") {
+      start.dataset.greenSiteBound = "1";
+      start.addEventListener("change", () => {
+        if (end) end.min = start.value || nextQuarterValue();
+      });
+    }
+  }
+
+  function validateSiteCheckForm(form) {
+    form?.querySelector(".green-owner-save-error")?.remove();
+    const lead = $('[name="leadId"]', form);
+    const customer = $('[name="customerId"]', form);
+    const status = $('[name="status"]', form);
+    const start = $('[name="scheduledStart"]', form);
+    const end = $('[name="scheduledEnd"]', form);
+
+    if (!lead?.value && !customer?.value) {
+      showFormError(form, "登録内容を確認してください", "営業案件または顧客のどちらかを選択してください。");
+      lead?.focus();
+      return false;
+    }
+
+    const scheduledStatus = ["scheduled", "in_progress"].includes(status?.value || "");
+    if (scheduledStatus && !start?.value) {
+      showFormError(form, "開始日時を確認してください", "予定確定・確認中の場合は開始日時を入力してください。");
+      start?.focus();
+      return false;
+    }
+    if (scheduledStatus && !end?.value) {
+      showFormError(form, "終了日時を確認してください", "予定確定・確認中の場合は終了日時を入力してください。");
+      end?.focus();
+      return false;
+    }
+    if ((start?.value && !end?.value) || (!start?.value && end?.value)) {
+      showFormError(form, "日時を確認してください", "開始日時と終了日時は両方入力してください。");
+      (start?.value ? end : start)?.focus();
+      return false;
+    }
+    if (start?.value && !isQuarterMinute(start.value)) {
+      showFormError(form, "開始日時を確認してください", "開始日時は00分・15分・30分・45分で選択してください。");
+      start.focus();
+      return false;
+    }
+    if (end?.value && !isQuarterMinute(end.value)) {
+      showFormError(form, "終了日時を確認してください", "終了日時は00分・15分・30分・45分で選択してください。");
+      end.focus();
+      return false;
+    }
+    if (start?.value && !isFutureDateTime(start.value)) {
+      showFormError(form, "開始日時を確認してください", "開始日時は現在以降を選択してください。過去日時は登録できません。");
+      start.focus();
+      return false;
+    }
+    if (end?.value && !isFutureDateTime(end.value)) {
+      showFormError(form, "終了日時を確認してください", "終了日時は現在以降を選択してください。過去日時は登録できません。");
+      end.focus();
+      return false;
+    }
+    if (start?.value && end?.value && new Date(end.value).getTime() <= new Date(start.value).getTime()) {
+      showFormError(form, "終了日時を確認してください", "終了日時は開始日時より後にしてください。");
+      end.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function siteCheckPayload(form) {
+    const value = (name) => $(`[name="${name}"]`, form)?.value?.trim() || "";
+    return {
+      leadId: value("leadId") || null,
+      customerId: value("customerId") || null,
+      siteId: value("siteId") || null,
+      status: value("status") || "scheduling",
+      scheduledStart: localInputToIso(value("scheduledStart")) || null,
+      scheduledEnd: localInputToIso(value("scheduledEnd")) || null,
+      customerRequest: value("customerRequest"),
+      internalNote: value("internalNote"),
+    };
+  }
+
+  function showSiteCheckSuccess(item, payload) {
+    const leadLinked = Boolean(payload.leadId);
+    const statusText = payload.scheduledStart ? "現地確認予定" : "現地確認調整中";
+    setDialog(
+      "現地確認を登録しました",
+      "REGISTERED",
+      `<section class="green-owner-success" role="status">
+        <div class="green-owner-success__icon">✓</div>
+        <div><strong>登録できました</strong><p>確認番号 <b>${esc(item?.check_number || "登録済み")}</b></p></div>
+      </section>
+      <section class="green-owner-next-action">
+        <strong>次にどうしますか？</strong>
+        <p>${leadLinked ? `営業案件も「${esc(statusText)}」へ連動更新されます。` : "現地確認一覧で予定と状態を確認できます。"} 訪問後は詳細画面から確認結果を記録します。</p>
+      </section>`,
+      `<button type="button" class="btn btn--secondary" id="green-site-check-list">現地確認一覧へ戻る</button>${leadLinked ? '<button type="button" class="btn btn--primary" id="green-site-check-lead">営業案件を確認</button>' : ""}`,
+    );
+
+    $("#green-site-check-list", dialog)?.addEventListener("click", () => {
+      closeDialog();
+      $('.owner-nav [data-view="site-checks"]')?.click();
+    });
+    $("#green-site-check-lead", dialog)?.addEventListener("click", () => {
+      closeDialog();
+      $('.owner-nav [data-view="leads"]')?.click();
+    });
+  }
+
+  async function submitSiteCheck(button) {
+    const form = $("#site-check-form", dialog);
+    if (!form || !validateSiteCheckForm(form)) return;
+    const payload = siteCheckPayload(form);
+
+    window.Green.setBusy(button, true, "登録中…");
+    try {
+      const result = await apiWithTimeout("/api/admin/site-checks", {
+        method: "POST",
+        json: payload,
+        idempotencyKey: window.Green.uuid?.() || `green-site-check-${Date.now()}`,
+      }, 9000);
+      const item = result?.data?.siteCheck || {};
+      window.Green.toast(`現地確認 ${item.check_number || ""} を登録しました。`, "success");
+      showSiteCheckSuccess(item, payload);
+    } catch (error) {
+      const meta = [
+        error?.code ? `エラーコード: ${error.code}` : "",
+        error?.requestId ? `確認番号: ${error.requestId}` : "",
+      ].filter(Boolean).join(" / ");
+      showFormError(form, "現地確認を登録できませんでした", error?.message || "登録処理に失敗しました。", meta);
+    } finally {
+      if (button?.isConnected) window.Green.setBusy(button, false);
+    }
+  }
+
+  function installSiteCheckFix() {
+    window.addEventListener("click", (event) => {
+      const button = event.target?.closest?.("#save-site-check");
+      if (!button || !dialog.contains(button) || button.textContent.trim() !== "登録") return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      submitSiteCheck(button);
+    }, true);
+
+    dialog.addEventListener("focusin", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      if (!$("#site-check-form", dialog)) return;
+      if (input.name === "scheduledStart") input.min = nextQuarterValue();
+      if (input.name === "scheduledEnd") input.min = $('[name="scheduledStart"]', dialog)?.value || nextQuarterValue();
+    });
+  }
+
   function decodeSessionPayload() {
     try {
       const token = sessionStorage.getItem("green_admin_session_token");
@@ -458,8 +670,11 @@
     normalizeDialogShell();
     installLeadClickFix();
     installPhoneFix();
+    installSiteCheckFix();
     ensurePhoneHelp();
-    const observer = new MutationObserver(() => { ensurePhoneHelp(); applyScheduleRules(); });
+    ensureSiteCheckHelp();
+    applySiteCheckRules();
+    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
     setInterval(updateSessionCountdown, 30000);
