@@ -28,74 +28,6 @@ window.GREEN_CONFIG = Object.freeze({
 });
 
 
-/*
- * GREEN OWNER LEAD CACHE BRIDGE / R1.4
- * config.js is loaded before green-common.js and owner.js.
- * Install a setter now so the Green API object is wrapped at assignment time,
- * before owner.js captures it. Lead-list GET responses are cached for instant
- * detail opening without issuing a second list request.
- */
-(() => {
-  "use strict";
-  if (!/\/owner\.html$/.test(location.pathname)) return;
-  if (window.__GREEN_OWNER_LEAD_CACHE_BRIDGE__ === "R1.4") return;
-  window.__GREEN_OWNER_LEAD_CACHE_BRIDGE__ = "R1.4";
-
-  let currentGreen = window.Green || null;
-
-  function wrapGreen(value) {
-    if (!value || typeof value.api !== "function" || value.__leadListCacheWrapped === true) return value;
-
-    const originalApi = value.api;
-    const wrappedApi = async function(path, options = {}) {
-      const result = await originalApi(path, options);
-      try {
-        const method = String(options?.method || "GET").toUpperCase();
-        const requestPath = String(path || "");
-        if (method === "GET" && /^\/api\/admin\/leads(?:\?|$)/.test(requestPath)) {
-          const items = result?.data?.items;
-          if (Array.isArray(items)) {
-            const byId = Object.create(null);
-            items.forEach((item) => {
-              if (item?.id) byId[item.id] = { ...item };
-            });
-            window.__GREEN_OWNER_LEAD_CACHE__ = {
-              items: items.map((item) => ({ ...item })),
-              byId,
-              updatedAt: Date.now(),
-              source: requestPath,
-            };
-          }
-        }
-      } catch {}
-      return result;
-    };
-
-    return Object.freeze({
-      ...value,
-      api: wrappedApi,
-      __leadListCacheWrapped: true,
-    });
-  }
-
-  try {
-    const descriptor = Object.getOwnPropertyDescriptor(window, "Green");
-    if (!descriptor || descriptor.configurable) {
-      Object.defineProperty(window, "Green", {
-        configurable: true,
-        enumerable: true,
-        get() {
-          return currentGreen;
-        },
-        set(value) {
-          currentGreen = wrapGreen(value);
-        },
-      });
-      if (currentGreen) currentGreen = wrapGreen(currentGreen);
-    }
-  } catch {}
-})();
-
 window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
 
 (() => {
@@ -103,7 +35,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
   const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
-  const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R1.4-20260914";
+  const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R1.7-20260914";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
