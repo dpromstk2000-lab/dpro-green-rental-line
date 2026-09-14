@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.2-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.3-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -676,112 +676,174 @@
     </div>`;
   }
 
+  function leadActivitiesHtml(activities) {
+    return activities.length
+      ? activities.map((activity) => `<div class="owner-mini-item">
+          <strong>${esc(activity.summary || "対応内容未設定")}</strong>
+          <span class="owner-row-sub">${esc(formatLocalDateTime(activity.activity_at))}／${esc(ACTIVITY_TYPE_LABELS[activity.activity_type] || activity.activity_type || "その他")}</span>
+          ${activity.next_action ? `<span class="owner-row-sub">次回：${esc(activity.next_action)}</span>` : ""}
+        </div>`).join("")
+      : '<div class="owner-empty">対応履歴はありません。</div>';
+  }
+
+  async function loadLeadActivitiesInBackground(id) {
+    const status = $("#green-lead-history-status", dialog);
+    const list = $("#green-lead-activities", dialog);
+    if (!status || !list) return;
+
+    status.className = "green-owner-history-status";
+    status.innerHTML = "<strong>対応履歴を確認しています…</strong><span>案件の編集は先に進められます。</span>";
+
+    try {
+      const result = await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}`, undefined, 6000);
+      const activities = result?.data?.activities || [];
+      if (!$("#green-lead-activities", dialog)) return;
+      list.innerHTML = leadActivitiesHtml(activities);
+      status.className = "green-owner-history-status is-ok";
+      status.innerHTML = `<strong>対応履歴を読み込みました</strong><span>${activities.length}件の履歴を確認できます。</span>`;
+      window.setTimeout(() => {
+        if (status?.isConnected && status.classList.contains("is-ok")) status.remove();
+      }, 1800);
+    } catch (error) {
+      if (!$("#green-lead-activities", dialog)) return;
+      const meta = [
+        error?.code ? `エラーコード: ${error.code}` : "",
+        error?.requestId ? `確認番号: ${error.requestId}` : "",
+      ].filter(Boolean).join(" / ");
+      status.className = "green-owner-history-status is-warning";
+      status.innerHTML = `<strong>対応履歴のみ読み込めませんでした</strong><span>案件情報の確認・編集・保存はそのまま行えます。</span>${meta ? `<small>${esc(meta)}</small>` : ""}<button type="button" class="btn btn--secondary btn--small" id="green-retry-lead-history">履歴を再試行</button>`;
+      list.innerHTML = '<div class="owner-empty">履歴の取得待ちです。案件編集には影響しません。</div>';
+      $("#green-retry-lead-history")?.addEventListener("click", () => loadLeadActivitiesInBackground(id));
+    }
+  }
+
+  function renderLeadDialog(id, item) {
+    const nextActionValue = toLocalInput(item.next_action_at);
+    setLeadDialog(
+      `営業案件 ${item.lead_number || ""}`,
+      "SALES LEAD",
+      `${leadLegacyMinuteWarning(item)}
+      <form id="lead-update-form" class="owner-form-grid">
+        <label>状態<select name="status">${leadStatusOptions(item.status || "new")}</select></label>
+        <label>次回対応日時<input name="nextActionAt" type="datetime-local" step="900" value="${esc(nextActionValue)}"></label>
+        <label class="full">次回対応<textarea name="nextAction">${esc(item.next_action || "")}</textarea></label>
+        <label>再連絡日<input name="followUpOn" type="date" value="${esc(item.follow_up_on || "")}"></label>
+        <label data-lead-reason="hold">保留理由<input name="holdReason" value="${esc(item.hold_reason || "")}"></label>
+        <label class="full" data-lead-reason="lost">失注理由<textarea name="lostReason">${esc(item.lost_reason || "")}</textarea></label>
+      </form>
+      <section class="owner-dialog-section">
+        <h3>対応履歴</h3>
+        <div id="green-lead-history-status" class="green-owner-history-status"><strong>対応履歴を確認しています…</strong><span>案件の編集は先に進められます。</span></div>
+        <div id="green-lead-activities" class="owner-mini-list"><div class="owner-empty">対応履歴を確認中…</div></div>
+      </section>
+      <form id="lead-activity-form" class="owner-form-grid owner-dialog-section">
+        <h3 class="full">対応履歴を追加</h3>
+        <label>種別<select name="activityType">${activityTypeOptions()}</select></label>
+        <label>対応日時<input name="activityAt" type="datetime-local" step="900"></label>
+        <label class="full">対応内容<textarea name="summary" required></textarea></label>
+        <label>次回対応<input name="nextAction"></label>
+        <label>次回日時<input name="nextActionAt" type="datetime-local" step="900"></label>
+      </form>`,
+      '<button type="button" class="btn btn--secondary" id="add-lead-activity">履歴を追加</button><button type="button" class="btn btn--primary" id="save-lead">案件を保存</button>',
+    );
+
+    const status = $('[name="status"]', $("#lead-update-form"));
+    status?.addEventListener("change", syncLeadReasonVisibility);
+    syncLeadReasonVisibility();
+    applyScheduleRules();
+
+    $("#save-lead")?.addEventListener("click", async (event) => {
+      if (!validateLeadSchedule()) return;
+      const form = $("#lead-update-form");
+      const payload = {
+        status: $('[name="status"]', form)?.value || item.status || "new",
+        nextActionAt: localInputToIso($('[name="nextActionAt"]', form)?.value || ""),
+        nextAction: $('[name="nextAction"]', form)?.value?.trim() || "",
+        followUpOn: $('[name="followUpOn"]', form)?.value || "",
+        holdReason: $('[name="holdReason"]', form)?.value?.trim() || "",
+        lostReason: $('[name="lostReason"]', form)?.value?.trim() || "",
+      };
+      const button = event.currentTarget;
+      window.Green.setBusy(button, true, "保存中…");
+      try {
+        await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}`, { method: "PATCH", json: payload }, 8000);
+        window.Green.toast("営業案件を更新しました。", "success");
+        closeDialog();
+        $('[data-load="leads"]')?.click();
+      } catch (error) {
+        window.Green.setBusy(button, false);
+        const meta = [error?.code ? `エラーコード: ${error.code}` : "", error?.requestId ? `確認番号: ${error.requestId}` : ""].filter(Boolean).join(" / ");
+        const form = $("#lead-update-form");
+        if (form) {
+          const old = form.querySelector(".green-owner-save-error");
+          old?.remove();
+          const box = document.createElement("div");
+          box.className = "green-owner-inline-error green-owner-save-error";
+          box.innerHTML = `<strong>案件を保存できませんでした</strong><span>${esc(error?.message || "保存処理に失敗しました。")}</span>${meta ? `<small>${esc(meta)}</small>` : ""}`;
+          form.prepend(box);
+          box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }
+    });
+
+    $("#add-lead-activity")?.addEventListener("click", async (event) => {
+      if (!validateActivitySchedule()) return;
+      const form = $("#lead-activity-form");
+      const summary = $('[name="summary"]', form)?.value?.trim() || "";
+      if (!summary) {
+        failSchedule(form, $('[name="summary"]', form), "対応内容を入力してください。");
+        return;
+      }
+      const payload = {
+        activityType: $('[name="activityType"]', form)?.value || "memo",
+        activityAt: localInputToIso($('[name="activityAt"]', form)?.value || ""),
+        summary,
+        nextAction: $('[name="nextAction"]', form)?.value?.trim() || "",
+        nextActionAt: localInputToIso($('[name="nextActionAt"]', form)?.value || ""),
+      };
+      const button = event.currentTarget;
+      window.Green.setBusy(button, true, "追加中…");
+      try {
+        await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}/activities`, { method: "POST", json: payload }, 8000);
+        window.Green.toast("対応履歴を追加しました。", "success");
+        form.reset();
+        applyScheduleRules();
+        await loadLeadActivitiesInBackground(id);
+      } catch (error) {
+        window.Green.setBusy(button, false);
+        const meta = [error?.code ? `エラーコード: ${error.code}` : "", error?.requestId ? `確認番号: ${error.requestId}` : ""].filter(Boolean).join(" / ");
+        const old = form.querySelector(".green-owner-save-error");
+        old?.remove();
+        const box = document.createElement("div");
+        box.className = "green-owner-inline-error green-owner-save-error";
+        box.innerHTML = `<strong>履歴を追加できませんでした</strong><span>${esc(error?.message || "追加処理に失敗しました。")}</span>${meta ? `<small>${esc(meta)}</small>` : ""}`;
+        form.prepend(box);
+      } finally {
+        if (button?.isConnected) window.Green.setBusy(button, false);
+      }
+    });
+
+    void loadLeadActivitiesInBackground(id);
+  }
+
   async function robustOpenLead(id) {
     setLeadDialog(
       "営業案件詳細",
       "LOADING",
-      '<div class="owner-loading">データを読み込んでいます…</div><div class="green-owner-loading-note">12秒以上かかる場合は、自動的にエラー理由と再試行ボタンを表示します。</div>',
+      '<div class="owner-loading">案件情報を読み込んでいます…</div><div class="green-owner-loading-note">一覧取得を使って先に案件画面を開き、対応履歴は後から読み込みます。</div>',
       '<button type="button" class="btn btn--secondary" data-dialog-close>閉じる</button>',
     );
 
     try {
-      const result = await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}`);
-      const item = result?.data?.lead;
-      const activities = result?.data?.activities || [];
-      if (!item?.id) {
-        const error = new Error("営業案件データの形式を確認できませんでした。");
-        error.code = "invalid_lead_response";
+      const result = await apiWithTimeout("/api/admin/leads?limit=200", undefined, 8000);
+      const items = result?.data?.items || [];
+      const item = items.find((candidate) => candidate?.id === id);
+      if (!item) {
+        const error = new Error("営業案件が一覧データに見つかりませんでした。再表示してからもう一度開いてください。");
+        error.code = "lead_not_in_list";
         throw error;
       }
-
-      const nextActionValue = toLocalInput(item.next_action_at);
-      const activitiesHtml = activities.length
-        ? activities.map((activity) => `<div class="owner-mini-item">
-            <strong>${esc(activity.summary || "対応内容未設定")}</strong>
-            <span class="owner-row-sub">${esc(formatLocalDateTime(activity.activity_at))}／${esc(ACTIVITY_TYPE_LABELS[activity.activity_type] || activity.activity_type || "その他")}</span>
-            ${activity.next_action ? `<span class="owner-row-sub">次回：${esc(activity.next_action)}</span>` : ""}
-          </div>`).join("")
-        : '<div class="owner-empty">対応履歴はありません。</div>';
-
-      setLeadDialog(
-        `営業案件 ${item.lead_number || ""}`,
-        "SALES LEAD",
-        `${leadLegacyMinuteWarning(item)}
-        <form id="lead-update-form" class="owner-form-grid">
-          <label>状態<select name="status">${leadStatusOptions(item.status || "new")}</select></label>
-          <label>次回対応日時<input name="nextActionAt" type="datetime-local" step="900" value="${esc(nextActionValue)}"></label>
-          <label class="full">次回対応<textarea name="nextAction">${esc(item.next_action || "")}</textarea></label>
-          <label>再連絡日<input name="followUpOn" type="date" value="${esc(item.follow_up_on || "")}"></label>
-          <label data-lead-reason="hold">保留理由<input name="holdReason" value="${esc(item.hold_reason || "")}"></label>
-          <label class="full" data-lead-reason="lost">失注理由<textarea name="lostReason">${esc(item.lost_reason || "")}</textarea></label>
-        </form>
-        <section class="owner-dialog-section"><h3>対応履歴</h3><div class="owner-mini-list">${activitiesHtml}</div></section>
-        <form id="lead-activity-form" class="owner-form-grid owner-dialog-section">
-          <h3 class="full">対応履歴を追加</h3>
-          <label>種別<select name="activityType">${activityTypeOptions()}</select></label>
-          <label>対応日時<input name="activityAt" type="datetime-local" step="900"></label>
-          <label class="full">対応内容<textarea name="summary" required></textarea></label>
-          <label>次回対応<input name="nextAction"></label>
-          <label>次回日時<input name="nextActionAt" type="datetime-local" step="900"></label>
-        </form>`,
-        '<button type="button" class="btn btn--secondary" id="add-lead-activity">履歴を追加</button><button type="button" class="btn btn--primary" id="save-lead">案件を保存</button>',
-      );
-
-      const status = $('[name="status"]', $("#lead-update-form"));
-      status?.addEventListener("change", syncLeadReasonVisibility);
-      syncLeadReasonVisibility();
-      applyScheduleRules();
-
-      $("#save-lead")?.addEventListener("click", async (event) => {
-        if (!validateLeadSchedule()) return;
-        const form = $("#lead-update-form");
-        const payload = {
-          status: $('[name="status"]', form)?.value || item.status || "new",
-          nextActionAt: localInputToIso($('[name="nextActionAt"]', form)?.value || ""),
-          nextAction: $('[name="nextAction"]', form)?.value?.trim() || "",
-          followUpOn: $('[name="followUpOn"]', form)?.value || "",
-          holdReason: $('[name="holdReason"]', form)?.value?.trim() || "",
-          lostReason: $('[name="lostReason"]', form)?.value?.trim() || "",
-        };
-        const button = event.currentTarget;
-        window.Green.setBusy(button, true, "保存中…");
-        try {
-          await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}`, { method: "PATCH", json: payload });
-          window.Green.toast("営業案件を更新しました。", "success");
-          closeDialog();
-          $('[data-load="leads"]')?.click();
-        } catch (error) {
-          window.Green.setBusy(button, false);
-          showLeadLoadError(id, error);
-        }
-      });
-
-      $("#add-lead-activity")?.addEventListener("click", async (event) => {
-        if (!validateActivitySchedule()) return;
-        const form = $("#lead-activity-form");
-        const summary = $('[name="summary"]', form)?.value?.trim() || "";
-        if (!summary) {
-          failSchedule(form, $('[name="summary"]', form), "対応内容を入力してください。");
-          return;
-        }
-        const payload = {
-          activityType: $('[name="activityType"]', form)?.value || "memo",
-          activityAt: localInputToIso($('[name="activityAt"]', form)?.value || ""),
-          summary,
-          nextAction: $('[name="nextAction"]', form)?.value?.trim() || "",
-          nextActionAt: localInputToIso($('[name="nextActionAt"]', form)?.value || ""),
-        };
-        const button = event.currentTarget;
-        window.Green.setBusy(button, true, "追加中…");
-        try {
-          await apiWithTimeout(`/api/admin/leads/${encodeURIComponent(id)}/activities`, { method: "POST", json: payload });
-          window.Green.toast("対応履歴を追加しました。", "success");
-          await robustOpenLead(id);
-        } catch (error) {
-          window.Green.setBusy(button, false);
-          showLeadLoadError(id, error);
-        }
-      });
+      renderLeadDialog(id, item);
     } catch (error) {
       showLeadLoadError(id, error);
     }
