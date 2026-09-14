@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.8-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.9-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -335,6 +335,106 @@
     return Object.entries(options).map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
   }
 
+  const PENDING_SITE_HANDOFF_KEY = "green_pending_site_after_customer_v1";
+
+  function splitJapaneseAddress(value) {
+    const address = String(value || "").trim();
+    if (!address) return { prefecture: "", city: "", addressLine: "" };
+    const pref = address.match(/^(北海道|東京都|京都府|大阪府|.{2,3}県)(.*)$/);
+    if (!pref) return { prefecture: "", city: "", addressLine: address };
+    const prefecture = pref[1];
+    const rest = pref[2].trim();
+    for (const pattern of [/^(.+?市.+?区)(.*)$/, /^(.+?郡.+?[町村])(.*)$/, /^(.+?[市区町村])(.*)$/]) {
+      const match = rest.match(pattern);
+      if (match) return { prefecture, city: match[1].trim(), addressLine: (match[2] || "").trim() };
+    }
+    return { prefecture, city: "", addressLine: rest };
+  }
+
+  function savePendingSiteHandoff(customer, payload) {
+    try {
+      sessionStorage.setItem(PENDING_SITE_HANDOFF_KEY, JSON.stringify({
+        customerId: customer?.id || "",
+        customerNumber: customer?.customer_number || "",
+        companyName: customer?.company_name || payload?.companyName || "",
+        contactName: customer?.contact_name || payload?.contactName || "",
+        phone: customer?.phone || payload?.phone || "",
+        postalCode: customer?.postal_code || payload?.postalCode || "",
+        address: customer?.address || payload?.address || "",
+        createdAt: Date.now(),
+      }));
+    } catch {}
+  }
+
+  function goToSiteRegistrationAfterCustomer(customer, payload) {
+    savePendingSiteHandoff(customer, payload);
+    const url = new URL(location.href);
+    url.searchParams.set("view", "sites");
+    location.href = url.toString();
+  }
+
+  async function resumePendingSiteHandoff() {
+    let pending = null;
+    try {
+      pending = JSON.parse(sessionStorage.getItem(PENDING_SITE_HANDOFF_KEY) || "null");
+    } catch {}
+    if (!pending?.customerId) return;
+    if (Date.now() - Number(pending.createdAt || 0) > 10 * 60 * 1000) {
+      try { sessionStorage.removeItem(PENDING_SITE_HANDOFF_KEY); } catch {}
+      return;
+    }
+
+    const currentView = new URLSearchParams(location.search).get("view");
+    if (currentView !== "sites") return;
+
+    const waitFor = async (test, timeoutMs = 9000) => {
+      const started = Date.now();
+      while (Date.now() - started < timeoutMs) {
+        const result = test();
+        if (result) return result;
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+      return null;
+    };
+
+    const addButton = await waitFor(() => document.querySelector('[data-action="new-site"]'));
+    if (!addButton) return;
+    addButton.click();
+
+    const form = await waitFor(() => document.querySelector("#site-form"));
+    if (!form) return;
+
+    const customerSelect = form.querySelector('[name="customerId"]');
+    if (customerSelect) {
+      const optionExists = Array.from(customerSelect.options || []).some((option) => option.value === pending.customerId);
+      if (optionExists) {
+        customerSelect.value = pending.customerId;
+        customerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+
+    const setIfBlank = (name, value) => {
+      const input = form.querySelector(`[name="${name}"]`);
+      if (input && !input.value && value) input.value = value;
+    };
+    setIfBlank("contactName", pending.contactName);
+    setIfBlank("phone", pending.phone);
+    setIfBlank("postalCode", pending.postalCode);
+
+    const parts = splitJapaneseAddress(pending.address);
+    setIfBlank("prefecture", parts.prefecture);
+    setIfBlank("city", parts.city);
+    setIfBlank("addressLine", parts.addressLine);
+
+    if (!form.querySelector(".green-owner-site-handoff-note")) {
+      const note = document.createElement("div");
+      note.className = "green-owner-next-action green-owner-site-handoff-note full";
+      note.innerHTML = `<strong>${esc(pending.customerNumber || "登録した顧客")} の拠点を登録します</strong><p>顧客・担当者・電話・住所を引き継ぎました。拠点名、建物名、入館方法、駐車情報などを確認してください。</p>`;
+      form.prepend(note);
+    }
+    try { sessionStorage.removeItem(PENDING_SITE_HANDOFF_KEY); } catch {}
+  }
+
   function installLeadCustomerHandoff(id, lead) {
     const section = $("#green-lead-customer-handoff", dialog);
     if (!section || !lead) return;
@@ -407,7 +507,7 @@
         const customer = result?.data?.customer || {};
         setDialog("顧客台帳へ引き継ぎました", "REGISTERED", `<section class="green-owner-success" role="status"><div class="green-owner-success__icon">✓</div><div><strong>${result?.data?.reused ? "既存顧客へ連携しました" : "顧客を登録できました"}</strong><p>顧客番号 <b>${esc(customer.customer_number || "")}</b></p></div></section><section class="green-owner-next-action"><strong>次にどうしますか？</strong><p>営業案件・相談受付・現地確認も同じ顧客へ紐付きます。次は拠点・設置場所を登録できます。</p></section>`, '<button type="button" class="btn btn--secondary" id="green-customer-ledger-after">顧客台帳を開く</button><button type="button" class="btn btn--primary" id="green-sites-after">拠点・設置場所へ</button>');
         $("#green-customer-ledger-after", dialog)?.addEventListener("click", () => { closeDialog(); $('.owner-nav [data-view="customers"]')?.click(); });
-        $("#green-sites-after", dialog)?.addEventListener("click", () => { closeDialog(); $('.owner-nav [data-view="sites"]')?.click(); });
+        $("#green-sites-after", dialog)?.addEventListener("click", () => goToSiteRegistrationAfterCustomer(customer, payload));
       } catch (error) {
         const candidates = error?.details?.candidates || [];
         const extra = candidates.length ? ` 重複候補: ${candidates.map((c) => c.customer_number || c.company_name || c.contact_name).filter(Boolean).join(" / ")}` : "";
@@ -945,6 +1045,7 @@
 
   function boot() {
     normalizeDialogShell();
+  setTimeout(() => { resumePendingSiteHandoff().catch(() => {}); }, 250);
     installLeadClickFix();
     installPhoneFix();
     installSiteCheckFix();
