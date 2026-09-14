@@ -1,4 +1,4 @@
-/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1.2 / OWNER-FLOW-R1 */
+/** DPRO GREEN LINE / CONTACT-V1-7-GREEN-1 / CUSTOMER-HERO-2 / SHOP-R1.2 / OWNER-FLOW-R1 / OWNER-UX-FIX-R1 */
 window.GREEN_CONFIG = Object.freeze({
   API_BASE: "https://dpro-green-rental-line-api.dpromstk2000.workers.dev",
   FACILITY_CODE: "dpro_green_rental_demo",
@@ -34,6 +34,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
   const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
+  const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R1.0-20260914";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -165,12 +166,31 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     }
   }
 
+  function installOwnerUxFix() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (!document.querySelector('link[data-green-owner-ux-fix]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `green-owner-ux-fix.css?v=${encodeURIComponent(OWNER_UX_FIX_VERSION)}`;
+      link.dataset.greenOwnerUxFix = OWNER_UX_FIX_VERSION;
+      document.head.append(link);
+    }
+    if (!document.querySelector('script[data-green-owner-ux-fix]')) {
+      const script = document.createElement("script");
+      script.src = `green-owner-ux-fix.js?v=${encodeURIComponent(OWNER_UX_FIX_VERSION)}`;
+      script.defer = true;
+      script.dataset.greenOwnerUxFix = OWNER_UX_FIX_VERSION;
+      document.head.append(script);
+    }
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
     installTutorialRuntime();
     installShopModule();
     installOwnerFlowClarity();
+    installOwnerUxFix();
     installContactFlowCopy();
   }
 
