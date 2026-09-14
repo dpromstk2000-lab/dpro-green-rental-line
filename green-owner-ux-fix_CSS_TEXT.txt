@@ -1,4 +1,4 @@
-/* DPRO GREEN OWNER UX FIX R1.0 / 2026-09-14 */
+/* DPRO GREEN OWNER UX FIX R1.1 / 2026-09-14 */
 .green-owner-guidance,
 .green-owner-inline-error,
 .green-owner-success,
@@ -102,4 +102,17 @@
   .green-owner-success { align-items: flex-start; }
   #dialog-footer { flex-wrap: wrap; }
   #dialog-footer .btn { flex: 1 1 100%; }
+}
+
+.green-owner-schedule-note {
+  display: block;
+  margin-top: 6px;
+  color: #587067;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.green-owner-schedule-error {
+  margin-top: 0;
+  margin-bottom: 12px;
 }

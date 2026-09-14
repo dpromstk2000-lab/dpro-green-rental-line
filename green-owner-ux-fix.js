@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.0-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.1-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -350,18 +350,186 @@
     }
   }
 
+
+  function pad2(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function localDateValue(date = new Date()) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  }
+
+  function localDateTimeValue(date) {
+    return `${localDateValue(date)}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  }
+
+  function nextQuarterValue() {
+    const date = new Date();
+    date.setSeconds(0, 0);
+    const remainder = date.getMinutes() % 15;
+    if (remainder === 0) date.setMinutes(date.getMinutes() + 15);
+    else date.setMinutes(date.getMinutes() + (15 - remainder));
+    return localDateTimeValue(date);
+  }
+
+  function isQuarterMinute(value) {
+    if (!value) return true;
+    const match = String(value).match(/T\d{2}:(\d{2})/);
+    if (!match) return false;
+    return Number(match[1]) % 15 === 0;
+  }
+
+  function isFutureDateTime(value) {
+    if (!value) return true;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) && time >= Date.now();
+  }
+
+  function ensureScheduleNote(input, text) {
+    const label = input?.closest("label");
+    if (!label) return;
+    let note = label.querySelector(".green-owner-schedule-note");
+    if (!note) {
+      note = document.createElement("span");
+      note.className = "green-owner-schedule-note";
+      label.append(note);
+    }
+    note.textContent = text;
+  }
+
+  function applyScheduleRules() {
+    const leadForm = $("#lead-update-form", dialog);
+    if (leadForm) {
+      const nextActionAt = $('[name="nextActionAt"]', leadForm);
+      const followUpOn = $('[name="followUpOn"]', leadForm);
+      if (nextActionAt) {
+        nextActionAt.step = "900";
+        nextActionAt.min = nextQuarterValue();
+        nextActionAt.title = "現在以降を15分単位で選択してください。";
+        ensureScheduleNote(nextActionAt, "現在以降・15分刻み");
+      }
+      if (followUpOn) {
+        followUpOn.min = localDateValue();
+        followUpOn.title = "今日以降の日付を選択してください。";
+        ensureScheduleNote(followUpOn, "今日以降");
+      }
+    }
+
+    const activityForm = $("#lead-activity-form", dialog);
+    if (activityForm) {
+      const activityAt = $('[name="activityAt"]', activityForm);
+      const nextActionAt = $('[name="nextActionAt"]', activityForm);
+      if (activityAt) {
+        activityAt.step = "900";
+        activityAt.title = "実績日時は過去も入力できます。時間は15分単位です。";
+        ensureScheduleNote(activityAt, "実績日時：過去入力可・15分刻み");
+      }
+      if (nextActionAt) {
+        nextActionAt.step = "900";
+        nextActionAt.min = nextQuarterValue();
+        nextActionAt.title = "現在以降を15分単位で選択してください。";
+        ensureScheduleNote(nextActionAt, "現在以降・15分刻み");
+      }
+    }
+  }
+
+  function clearScheduleError(form) {
+    form?.querySelector(".green-owner-schedule-error")?.remove();
+    form?.querySelectorAll('input[type="datetime-local"], input[type="date"]').forEach((input) => input.setCustomValidity(""));
+  }
+
+  function failSchedule(form, input, message) {
+    clearScheduleError(form);
+    const box = document.createElement("div");
+    box.className = "green-owner-inline-error green-owner-schedule-error";
+    box.setAttribute("role", "alert");
+    box.innerHTML = `<strong>日時を確認してください</strong><span>${esc(message)}</span>`;
+    form.prepend(box);
+    if (input) {
+      input.setCustomValidity(message);
+      input.focus();
+      input.reportValidity();
+      input.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    return false;
+  }
+
+  function validateLeadSchedule() {
+    const form = $("#lead-update-form", dialog);
+    if (!form) return true;
+    clearScheduleError(form);
+    const nextActionAt = $('[name="nextActionAt"]', form);
+    const followUpOn = $('[name="followUpOn"]', form);
+
+    if (nextActionAt?.value && !isQuarterMinute(nextActionAt.value)) {
+      return failSchedule(form, nextActionAt, "次回対応日時は00分・15分・30分・45分のいずれかで選択してください。");
+    }
+    if (nextActionAt?.value && !isFutureDateTime(nextActionAt.value)) {
+      return failSchedule(form, nextActionAt, "次回対応日時は現在以降を選択してください。過去日時は登録できません。");
+    }
+    if (followUpOn?.value && followUpOn.value < localDateValue()) {
+      return failSchedule(form, followUpOn, "再連絡日は今日以降を選択してください。過去日は登録できません。");
+    }
+    return true;
+  }
+
+  function validateActivitySchedule() {
+    const form = $("#lead-activity-form", dialog);
+    if (!form) return true;
+    clearScheduleError(form);
+    const activityAt = $('[name="activityAt"]', form);
+    const nextActionAt = $('[name="nextActionAt"]', form);
+
+    if (activityAt?.value && !isQuarterMinute(activityAt.value)) {
+      return failSchedule(form, activityAt, "対応日時は00分・15分・30分・45分のいずれかで入力してください。過去日時の入力は可能です。");
+    }
+    if (nextActionAt?.value && !isQuarterMinute(nextActionAt.value)) {
+      return failSchedule(form, nextActionAt, "次回日時は00分・15分・30分・45分のいずれかで選択してください。");
+    }
+    if (nextActionAt?.value && !isFutureDateTime(nextActionAt.value)) {
+      return failSchedule(form, nextActionAt, "次回日時は現在以降を選択してください。過去日時は登録できません。");
+    }
+    return true;
+  }
+
+  function installScheduleGuard() {
+    dialog.addEventListener("click", (event) => {
+      const saveLead = event.target.closest?.("#save-lead");
+      if (saveLead && dialog.contains(saveLead) && !validateLeadSchedule()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      const addActivity = event.target.closest?.("#add-lead-activity");
+      if (addActivity && dialog.contains(addActivity) && !validateActivitySchedule()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+
+    dialog.addEventListener("focusin", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      if (input.type === "datetime-local" && input.name === "nextActionAt") input.min = nextQuarterValue();
+      if (input.type === "date" && input.name === "followUpOn") input.min = localDateValue();
+    });
+  }
+
   function boot() {
     normalizeDialogShell();
     installPhoneSubmitGuard();
+    installScheduleGuard();
 
     const observer = new MutationObserver(() => {
       ensurePhoneFormHelp();
+      applyScheduleRules();
       syncToastLayer();
     });
     observer.observe(dialog, { childList: true, subtree: true, attributes: true, attributeFilter: ["open"] });
     dialog.addEventListener("close", syncToastLayer);
 
     ensurePhoneFormHelp();
+    applyScheduleRules();
     syncToastLayer();
     updateSessionCountdown();
     window.setInterval(updateSessionCountdown, 30000);
