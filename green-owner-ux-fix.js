@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.7-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.8-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -27,6 +27,7 @@
   const ACTIVITY_TYPE_LABELS = Object.freeze({ call: "電話", line: "LINE", email: "メール", meeting: "面談", memo: "メモ" });
   const SITE_CHECK_STATUS_LABELS = Object.freeze({ scheduling: "日程調整中", scheduled: "予定確定", in_progress: "確認中", completed: "完了", postponed: "延期", cancelled: "取消" });
   const SITE_CHECK_PHOTO_LABELS = Object.freeze({ site: "現場全体", placement: "設置候補", access: "搬入経路", issue: "注意箇所", other: "その他" });
+  const CUSTOMER_STATUS_LABELS = Object.freeze({ lead: "見込み", active: "利用中", paused: "休止", ended: "終了", inactive: "無効" });
 
   function esc(value) {
     return String(value ?? "").replace(/[&<>'\"]/g, (char) => ({
@@ -245,6 +246,7 @@
         <label data-lead-reason="hold">保留理由<input name="holdReason" value="${esc(item.hold_reason || "")}"></label>
         <label class="full" data-lead-reason="lost">失注理由<textarea name="lostReason">${esc(item.lost_reason || "")}</textarea></label>
       </form>
+      <section class="owner-dialog-section" id="green-lead-customer-handoff"><h3>顧客台帳</h3><div class="owner-empty">案件情報を確認しています…</div></section>
       <section class="owner-dialog-section"><h3>対応履歴</h3><div id="green-lead-history-status" class="green-owner-history-status"><strong>対応履歴を確認しています…</strong><span>案件の編集は先に進められます。</span></div><div id="green-lead-activities" class="owner-mini-list"><div class="owner-empty">対応履歴を確認中…</div></div></section>
       <form id="lead-activity-form" class="owner-form-grid owner-dialog-section">
         <h3 class="full">対応履歴を追加</h3>
@@ -319,6 +321,104 @@
     void loadActivities(id);
   }
 
+  function customerStatusOptions(selected = "lead") {
+    return Object.entries(CUSTOMER_STATUS_LABELS).map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
+  }
+
+  function preferredContactOptions(selected = "phone") {
+    const options = { line: "LINE", phone: "電話", email: "メール", sms: "SMS", other: "その他" };
+    return Object.entries(options).map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
+  }
+
+  function headquartersStatusOptions(selected = "unconfirmed") {
+    const options = { unconfirmed: "未確認", checking: "確認中", confirmed: "確認済み", not_required: "不要", rejected: "不可" };
+    return Object.entries(options).map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
+  }
+
+  function installLeadCustomerHandoff(id, lead) {
+    const section = $("#green-lead-customer-handoff", dialog);
+    if (!section || !lead) return;
+    if (lead.customer_id) {
+      section.innerHTML = '<h3>顧客台帳</h3><div class="green-owner-history-status is-ok"><strong>顧客台帳に連携済みです</strong><span>この営業案件は既存の顧客情報へ紐付いています。</span></div><button type="button" class="btn btn--secondary" id="green-open-customer-ledger">顧客台帳を開く</button>';
+      $("#green-open-customer-ledger", section)?.addEventListener("click", () => { closeDialog(); $('.owner-nav [data-view="customers"]')?.click(); });
+      return;
+    }
+    const allowed = ["site_checked", "planning", "preparing", "installation_scheduled", "active"].includes(lead.status);
+    if (!allowed) {
+      section.innerHTML = '<h3>顧客台帳</h3><div class="owner-empty">現地確認完了後、見込み顧客として顧客台帳へ引き継げます。</div>';
+      return;
+    }
+    section.innerHTML = '<h3>顧客台帳</h3><div class="green-owner-next-action"><strong>現地確認後の顧客情報へ引き継ぐ</strong><p>契約前は「見込み」として登録し、拠点・提案・契約準備へ進めます。</p></div><button type="button" class="btn btn--primary" id="green-lead-to-customer">顧客台帳へ引き継ぐ</button>';
+    $("#green-lead-to-customer", section)?.addEventListener("click", () => openLeadCustomerHandoff(id, lead));
+  }
+
+  async function openLeadCustomerHandoff(leadId, lead) {
+    let inquiry = null;
+    if (lead?.inquiry_id) {
+      try {
+        const result = await apiWithTimeout(`/api/admin/inquiries/${encodeURIComponent(lead.inquiry_id)}`, undefined, 6000);
+        inquiry = result?.data?.inquiry || null;
+      } catch {}
+    }
+    const corporate = Boolean(inquiry?.company_name);
+    const customerType = corporate ? "corporate" : "individual";
+    setDialog(
+      "顧客台帳へ引き継ぐ",
+      "CUSTOMER HANDOFF",
+      `<section class="green-owner-next-action"><strong>営業案件から顧客情報を作成します</strong><p>まだ契約前なので、通常は状態を「見込み」のまま登録します。契約開始後に「利用中」へ変更できます。</p></section>
+      <form id="green-lead-customer-form" class="owner-form-grid">
+        <label>顧客区分<select name="customerType"><option value="corporate"${customerType === "corporate" ? " selected" : ""}>法人</option><option value="individual"${customerType === "individual" ? " selected" : ""}>個人</option><option value="organization">団体</option><option value="other">その他</option></select></label>
+        <label>状態<select name="status">${customerStatusOptions("lead")}</select><span class="green-owner-schedule-note">契約前は「見込み」推奨</span></label>
+        <label>法人名・屋号<input name="companyName" value="${esc(inquiry?.company_name || "")}"></label>
+        <label>担当者名<input name="contactName" required value="${esc(inquiry?.contact_name || "")}"></label>
+        <label>担当者名カナ<input name="contactNameKana" value="${esc(inquiry?.contact_name_kana || "")}"></label>
+        <label>電話番号<input name="phone" inputmode="tel" value="${esc(inquiry?.phone || "")}"></label>
+        <label>メール<input name="email" type="email" value="${esc(inquiry?.email || "")}"></label>
+        <label>郵便番号<input name="postalCode" value="${esc(inquiry?.postal_code || "")}"></label>
+        <label class="full">住所<input name="address" value="${esc(inquiry?.address || "")}"></label>
+        <label>希望連絡方法<select name="preferredContactMethod">${preferredContactOptions(inquiry?.preferred_contact_method || "phone")}</select></label>
+        <label>本部確認<select name="headquartersConfirmationStatus">${headquartersStatusOptions("unconfirmed")}</select></label>
+      </form>`,
+      '<button type="button" class="btn btn--secondary" id="green-customer-handoff-cancel">営業案件へ戻る</button><button type="button" class="btn btn--primary" id="green-customer-handoff-save">顧客台帳へ登録</button>'
+    );
+    $("#green-customer-handoff-cancel", dialog)?.addEventListener("click", () => renderLeadDialog(leadId, lead));
+    $("#green-customer-handoff-save", dialog)?.addEventListener("click", async (event) => {
+      const form = $("#green-lead-customer-form", dialog);
+      const get = (name) => $(`[name="${name}"]`, form)?.value?.trim() || "";
+      const type = get("customerType") || "corporate";
+      if (!get("contactName")) { showFormError(form, "登録内容を確認してください", "担当者名を入力してください。"); return; }
+      if (type !== "individual" && !get("companyName")) { showFormError(form, "登録内容を確認してください", "法人・団体の場合は法人名・屋号を入力してください。"); return; }
+      const payload = {
+        leadId,
+        inquiryId: lead?.inquiry_id || null,
+        customerType: type,
+        status: get("status") || "lead",
+        companyName: get("companyName"),
+        contactName: get("contactName"),
+        contactNameKana: get("contactNameKana"),
+        phone: get("phone"), email: get("email"), postalCode: get("postalCode"), address: get("address"),
+        preferredContactMethod: get("preferredContactMethod") || "phone",
+        headquartersConfirmationStatus: get("headquartersConfirmationStatus") || "unconfirmed",
+      };
+      const button = event.currentTarget;
+      window.Green.setBusy(button, true, "登録中…");
+      try {
+        const result = await apiWithTimeout("/api/admin/customers", { method: "POST", json: payload }, 9000);
+        const customer = result?.data?.customer || {};
+        setDialog("顧客台帳へ引き継ぎました", "REGISTERED", `<section class="green-owner-success" role="status"><div class="green-owner-success__icon">✓</div><div><strong>${result?.data?.reused ? "既存顧客へ連携しました" : "顧客を登録できました"}</strong><p>顧客番号 <b>${esc(customer.customer_number || "")}</b></p></div></section><section class="green-owner-next-action"><strong>次にどうしますか？</strong><p>営業案件・相談受付・現地確認も同じ顧客へ紐付きます。次は拠点・設置場所を登録できます。</p></section>`, '<button type="button" class="btn btn--secondary" id="green-customer-ledger-after">顧客台帳を開く</button><button type="button" class="btn btn--primary" id="green-sites-after">拠点・設置場所へ</button>');
+        $("#green-customer-ledger-after", dialog)?.addEventListener("click", () => { closeDialog(); $('.owner-nav [data-view="customers"]')?.click(); });
+        $("#green-sites-after", dialog)?.addEventListener("click", () => { closeDialog(); $('.owner-nav [data-view="sites"]')?.click(); });
+      } catch (error) {
+        const candidates = error?.details?.candidates || [];
+        const extra = candidates.length ? ` 重複候補: ${candidates.map((c) => c.customer_number || c.company_name || c.contact_name).filter(Boolean).join(" / ")}` : "";
+        const meta = [error?.code ? `エラーコード: ${error.code}` : "", error?.requestId ? `確認番号: ${error.requestId}` : ""].filter(Boolean).join(" / ");
+        showFormError(form, "顧客台帳へ登録できませんでした", `${error?.message || "登録処理に失敗しました。"}${extra}`, meta);
+      } finally {
+        if (button?.isConnected) window.Green.setBusy(button, false);
+      }
+    });
+  }
+
   async function hydrateLead(id, form) {
     form.dataset.greenDirty = "0";
     form.addEventListener("input", () => { form.dataset.greenDirty = "1"; }, { once: true });
@@ -335,6 +435,7 @@
       $('[name="lostReason"]', form).value = full.lost_reason || "";
       syncLeadReasonVisibility();
       applyScheduleRules();
+      installLeadCustomerHandoff(id, full);
     } catch {
       // 補足情報の取得失敗は編集を止めない。
     }
@@ -811,6 +912,17 @@
     });
   }
 
+  function applyCustomerLedgerCopy() {
+    const panel = document.querySelector('[data-view-panel="customers"]');
+    if (!panel) return;
+    for (const element of panel.querySelectorAll("p")) {
+      const text = element.textContent?.trim() || "";
+      if (text.includes("成約後・利用中のお客様情報を管理します")) {
+        element.textContent = "現地確認後の見込み顧客から、成約後・利用中のお客様まで管理します。相談・営業の進捗は営業案件で管理します。";
+      }
+    }
+  }
+
   function decodeSessionPayload() {
     try {
       const token = sessionStorage.getItem("green_admin_session_token");
@@ -838,10 +950,11 @@
     installSiteCheckFix();
     installSiteCheckDetailStyles();
     installSiteCheckDetailFixR17();
+    applyCustomerLedgerCopy();
     ensurePhoneHelp();
     ensureSiteCheckHelp();
     applySiteCheckRules();
-    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); });
+    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
     setInterval(updateSessionCountdown, 30000);
