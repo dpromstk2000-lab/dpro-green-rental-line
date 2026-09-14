@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.0-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.1-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1012,6 +1012,58 @@
     });
   }
 
+  async function syncServiceStatusFromCustomer() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "SERVICE STATUS") return;
+
+    const form = $("#contract-form", dialog);
+    if (!form || form.dataset.greenCustomerSyncBound === "1") return;
+
+    const customerSelect = $('[name="customerId"]', form);
+    const contactSelect = $('[name="preferredContactMethod"]', form);
+    const hqSelect = $('[name="headquartersConfirmationStatus"]', form);
+    if (!customerSelect || !contactSelect || !hqSelect) return;
+
+    form.dataset.greenCustomerSyncBound = "1";
+
+    const apply = async () => {
+      const customerId = customerSelect.value;
+      if (!customerId) return;
+
+      try {
+        const result = await apiWithTimeout(`/api/admin/customers/${encodeURIComponent(customerId)}`, undefined, 7000);
+        const customer = result?.data?.customer || null;
+        if (!customer) return;
+
+        if (customer.preferred_contact_method) {
+          contactSelect.value = customer.preferred_contact_method;
+        }
+        if (customer.headquarters_confirmation_status) {
+          hqSelect.value = customer.headquarters_confirmation_status;
+        }
+
+        let note = form.querySelector(".green-service-status-customer-sync-note");
+        if (!note) {
+          note = document.createElement("div");
+          note.className = "green-owner-next-action green-service-status-customer-sync-note full";
+          const firstLabel = form.querySelector("label");
+          if (firstLabel) firstLabel.before(note);
+          else form.prepend(note);
+        }
+        note.innerHTML = `<strong>顧客台帳の設定を反映しました</strong><p>希望連絡方法と本部確認は、選択した顧客の登録内容を初期値として表示しています。</p>`;
+      } catch {
+        // Existing form remains usable even when customer detail lookup fails.
+      }
+    };
+
+    customerSelect.addEventListener("change", apply);
+
+    // Existing contracts must keep their own saved values.
+    if (!customerSelect.disabled && customerSelect.value) {
+      await apply();
+    }
+  }
+
   function ensureSiteDetailActions() {
     const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
     if (kicker !== "SITE DETAIL") return;
@@ -1098,7 +1150,8 @@
     ensureSiteCheckHelp();
     applySiteCheckRules();
     ensureSiteDetailActions();
-    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); ensureSiteDetailActions(); });
+    syncServiceStatusFromCustomer().catch(() => {});
+    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); ensureSiteDetailActions(); syncServiceStatusFromCustomer().catch(() => {}); });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
     setInterval(updateSessionCountdown, 30000);
