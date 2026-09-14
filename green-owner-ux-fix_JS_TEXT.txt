@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.9-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.0-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1012,6 +1012,48 @@
     });
   }
 
+  function ensureSiteDetailActions() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "SITE DETAIL") return;
+
+    const body = $("#dialog-body", dialog);
+    const footer = $("#dialog-footer", dialog);
+    if (!body || !footer) return;
+
+    const edit = $("#edit-site", dialog);
+    const add = $("#add-area", dialog);
+    if (!edit && !add) return;
+
+    let close = footer.querySelector("[data-dialog-close]");
+    if (!close) {
+      close = document.createElement("button");
+      close.type = "button";
+      close.className = "btn btn--secondary";
+      close.dataset.dialogClose = "";
+      close.textContent = "閉じる";
+      close.addEventListener("click", closeDialog);
+      footer.append(close);
+    }
+
+    footer.classList.add("green-site-detail-footer");
+
+    if (edit) {
+      edit.classList.remove("btn--primary");
+      edit.classList.add("btn--secondary");
+      if (edit.parentElement !== footer) footer.insertBefore(edit, close);
+    }
+
+    if (add) {
+      add.classList.remove("btn--secondary");
+      add.classList.add("btn--primary");
+      if (add.parentElement !== footer) footer.insertBefore(add, close);
+    }
+
+    for (const wrapper of body.querySelectorAll(".owner-dialog-actions")) {
+      if (!wrapper.children.length) wrapper.remove();
+    }
+  }
+
   function applyCustomerLedgerCopy() {
     const panel = document.querySelector('[data-view-panel="customers"]');
     if (!panel) return;
@@ -1055,7 +1097,8 @@
     ensurePhoneHelp();
     ensureSiteCheckHelp();
     applySiteCheckRules();
-    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); });
+    ensureSiteDetailActions();
+    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); ensureSiteDetailActions(); });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
     setInterval(updateSessionCountdown, 30000);
