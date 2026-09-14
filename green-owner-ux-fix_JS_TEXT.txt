@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R1.3-20260914";
+  const VERSION = "GREEN-OWNER-UX-FIX-R1.4-20260914";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -827,10 +827,20 @@
   }
 
   async function robustOpenLead(id) {
+    const cache = window.__GREEN_OWNER_LEAD_CACHE__;
+    const cachedItem = cache?.byId?.[id]
+      || cache?.items?.find?.((candidate) => candidate?.id === id)
+      || null;
+
+    if (cachedItem) {
+      renderLeadDialog(id, cachedItem);
+      return;
+    }
+
     setLeadDialog(
       "営業案件詳細",
       "LOADING",
-      '<div class="owner-loading">案件情報を読み込んでいます…</div><div class="green-owner-loading-note">一覧取得を使って先に案件画面を開き、対応履歴は後から読み込みます。</div>',
+      '<div class="owner-loading">案件情報を読み込んでいます…</div><div class="green-owner-loading-note">営業案件一覧のキャッシュを確認しています。取得できない場合も8秒以内に理由を表示します。</div>',
       '<button type="button" class="btn btn--secondary" data-dialog-close>閉じる</button>',
     );
 
@@ -839,7 +849,7 @@
       const items = result?.data?.items || [];
       const item = items.find((candidate) => candidate?.id === id);
       if (!item) {
-        const error = new Error("営業案件が一覧データに見つかりませんでした。再表示してからもう一度開いてください。");
+        const error = new Error("営業案件が一覧データに見つかりませんでした。営業案件一覧を再表示してから、もう一度開いてください。");
         error.code = "lead_not_in_list";
         throw error;
       }
