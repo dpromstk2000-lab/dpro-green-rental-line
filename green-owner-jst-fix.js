@@ -1,13 +1,13 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.0-20260915";
+  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.1-20260915";
   if (!/\/owner\.html$/.test(location.pathname)) return;
-  if (!window.Green?.api) return;
+  if (typeof window.fetch !== "function") return;
 
   document.documentElement.dataset.greenOwnerJstDatetimeFix = VERSION;
 
-  const originalApi = window.Green.api.bind(window.Green);
+  const originalFetch = window.fetch.bind(window);
   let lastReplacementScheduledAt = "";
 
   function withTokyoOffset(value) {
@@ -21,6 +21,7 @@
     if (!value) return "";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
+
     const parts = Object.fromEntries(
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Tokyo",
@@ -30,37 +31,61 @@
         hour: "2-digit",
         minute: "2-digit",
         hourCycle: "h23",
-      }).formatToParts(date).filter((p) => p.type !== "literal").map((p) => [p.type, p.value])
+      })
+        .formatToParts(date)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value])
     );
+
     return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
   }
 
-  function isReplacementPath(path) {
-    return /^\/api\/admin\/replacements(?:\/|$)/.test(String(path || ""));
+  function replacementPath(urlLike) {
+    try {
+      return new URL(String(urlLike), location.href).pathname;
+    } catch {
+      return "";
+    }
   }
 
-  window.Green.api = async function patchedApi(path, options) {
-    let nextOptions = options;
+  function isReplacementApiPath(path) {
+    return /^\/api\/admin\/replacements(?:\/|$)/.test(path);
+  }
 
-    if (isReplacementPath(path) && options?.json && typeof options.json === "object") {
-      const json = { ...options.json };
-      if (typeof json.scheduledAt === "string") json.scheduledAt = withTokyoOffset(json.scheduledAt);
-      if (typeof json.scheduled_at === "string") json.scheduled_at = withTokyoOffset(json.scheduled_at);
-      nextOptions = { ...options, json };
+  function isReplacementDetailPath(path) {
+    return /^\/api\/admin\/replacements\/[0-9a-f-]{36}$/i.test(path);
+  }
+
+  function patchJsonBody(body) {
+    if (typeof body !== "string" || !body.trim().startsWith("{")) return body;
+
+    let json;
+    try {
+      json = JSON.parse(body);
+    } catch {
+      return body;
     }
 
-    const response = await originalApi(path, nextOptions);
+    let changed = false;
 
-    const match = String(path || "").match(/^\/api\/admin\/replacements\/([0-9a-f-]{36})$/i);
-    if (match && (!nextOptions?.method || String(nextOptions.method).toUpperCase() === "GET")) {
-      lastReplacementScheduledAt = response?.data?.request?.scheduled_at || "";
-      queueMicrotask(applyReplacementInputFix);
-      setTimeout(applyReplacementInputFix, 0);
-      setTimeout(applyReplacementInputFix, 50);
+    if (typeof json.scheduledAt === "string") {
+      const next = withTokyoOffset(json.scheduledAt);
+      if (next !== json.scheduledAt) {
+        json.scheduledAt = next;
+        changed = true;
+      }
     }
 
-    return response;
-  };
+    if (typeof json.scheduled_at === "string") {
+      const next = withTokyoOffset(json.scheduled_at);
+      if (next !== json.scheduled_at) {
+        json.scheduled_at = next;
+        changed = true;
+      }
+    }
+
+    return changed ? JSON.stringify(json) : body;
+  }
 
   function applyReplacementInputFix() {
     const dialog = document.querySelector("#owner-dialog");
@@ -80,13 +105,43 @@
 
     input.value = corrected;
     input.step = "900";
-    input.dataset.greenJstFixed = "1";
+    input.dataset.greenJstFixed = VERSION;
     input.title = "日本時間（Asia/Tokyo）で入力します。";
   }
 
-  const target = document.querySelector("#owner-dialog") || document.body;
-  const observer = new MutationObserver(() => applyReplacementInputFix());
-  observer.observe(target, { childList: true, subtree: true });
+  window.fetch = async function greenJstFetch(input, init = undefined) {
+    const url = typeof input === "string" ? input : input?.url;
+    const path = replacementPath(url);
+    let nextInit = init;
+
+    if (isReplacementApiPath(path) && init && typeof init === "object") {
+      const patchedBody = patchJsonBody(init.body);
+      if (patchedBody !== init.body) {
+        nextInit = { ...init, body: patchedBody };
+      }
+    }
+
+    const response = await originalFetch(input, nextInit);
+
+    const method = String(nextInit?.method || "GET").toUpperCase();
+    if (method === "GET" && isReplacementDetailPath(path)) {
+      response.clone().json().then((payload) => {
+        lastReplacementScheduledAt = payload?.data?.request?.scheduled_at || "";
+        queueMicrotask(applyReplacementInputFix);
+        setTimeout(applyReplacementInputFix, 0);
+        setTimeout(applyReplacementInputFix, 50);
+        setTimeout(applyReplacementInputFix, 150);
+      }).catch(() => {});
+    }
+
+    return response;
+  };
+
+  const dialog = document.querySelector("#owner-dialog");
+  if (dialog) {
+    const observer = new MutationObserver(() => applyReplacementInputFix());
+    observer.observe(dialog, { childList: true, subtree: true });
+  }
 
   console.info(`[DPRO GREEN] ${VERSION} active`);
 })();
