@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.4-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.5-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1027,11 +1027,17 @@
     if (kicker !== "INSTALLATION DETAIL") return;
 
     const body = $("#dialog-body", dialog);
-    if (!body || body.dataset.greenInstallationItemsReady === "1" || body.dataset.greenInstallationItemsLoading === "1") return;
+    if (!body || body.dataset.greenInstallationItemsLoading === "1") return;
 
     const sections = $$(".owner-dialog-section", body);
     const section = sections.find((item) => $("h3", item)?.textContent?.trim() === "一鉢資産");
     if (!section) return;
+
+    const listEl = $(".owner-mini-list", section);
+    if (!listEl) return;
+
+    const currentRows = Array.from(listEl.children);
+    if (currentRows.length && currentRows.every((row) => row.dataset.greenInstallationItem === "1")) return;
 
     const title = $("#dialog-title", dialog)?.textContent?.trim() || "";
     const number = title.match(/INS-\d{8}-\d+/)?.[0] || "";
@@ -1059,26 +1065,86 @@
       const assets = assetResult?.data?.plants || [];
       const assetMap = new Map(assets.map((item) => [item.id, item]));
 
-      const listEl = $(".owner-mini-list", section);
-      if (!listEl) return;
+      const areaOptions = (selectedId) => areas.map((area) =>
+        `<option value="${esc(area.id)}"${area.id === selectedId ? " selected" : ""}>${esc(area.area_name || "名称未設定")}</option>`
+      ).join("");
 
       listEl.innerHTML = items.length
         ? items.map((item) => {
             const asset = assetMap.get(item.plant_asset_id);
             const area = areaMap.get(item.site_area_id);
             const status = INSTALLATION_ITEM_STATUS_LABELS[item.item_status] || item.item_status || "未設定";
-            return `<div class="owner-mini-item">
+            return `<div class="owner-mini-item" data-green-installation-item="1" data-item-id="${esc(item.id)}">
               <strong>${esc(asset?.asset_code || "植物未取得")}</strong>
               <span>状態：${esc(status)}</span>
               <span>設置場所：${esc(area?.area_name || "未設定")}</span>
               <span>${esc(item.placement_note || "配置メモなし")}</span>
+              ${["installed", "cancelled"].includes(installation.status) ? "" : `<button type="button" class="btn btn--secondary" data-green-edit-installation-item="${esc(item.id)}">割当を編集</button>`}
+              <div class="green-installation-item-editor" data-green-installation-item-editor="${esc(item.id)}" hidden>
+                <label>設置場所
+                  <select data-green-item-area>${areaOptions(item.site_area_id)}</select>
+                </label>
+                <label>配置メモ
+                  <textarea data-green-item-note>${esc(item.placement_note || "")}</textarea>
+                </label>
+                <div class="owner-dialog-actions">
+                  <button type="button" class="btn btn--secondary" data-green-item-edit-cancel>取消</button>
+                  <button type="button" class="btn btn--primary" data-green-item-edit-save>変更を保存</button>
+                </div>
+              </div>
             </div>`;
           }).join("")
         : '<div class="owner-empty">登録はありません。</div>';
 
-      body.dataset.greenInstallationItemsReady = "1";
+      $$("[data-green-edit-installation-item]", listEl).forEach((button) => {
+        button.addEventListener("click", () => {
+          const editor = listEl.querySelector(`[data-green-installation-item-editor="${button.dataset.greenEditInstallationItem}"]`);
+          if (editor) editor.hidden = false;
+          button.hidden = true;
+        });
+      });
+
+      $$("[data-green-item-edit-cancel]", listEl).forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = button.closest("[data-green-installation-item]");
+          const editor = $("[data-green-installation-item-editor]", row);
+          const editButton = $("[data-green-edit-installation-item]", row);
+          if (editor) editor.hidden = true;
+          if (editButton) editButton.hidden = false;
+        });
+      });
+
+      $$("[data-green-item-edit-save]", listEl).forEach((button) => {
+        button.addEventListener("click", async () => {
+          const row = button.closest("[data-green-installation-item]");
+          const itemId = row?.dataset.itemId;
+          const areaId = $("[data-green-item-area]", row)?.value || "";
+          const note = $("[data-green-item-note]", row)?.value || "";
+          if (!itemId || !areaId) {
+            window.Green.toast("設置場所を選択してください。", "error");
+            return;
+          }
+          button.disabled = true;
+          const original = button.textContent;
+          button.textContent = "保存中…";
+          try {
+            await apiWithTimeout(`/api/admin/installations/${encodeURIComponent(installation.id)}/items/${encodeURIComponent(itemId)}`, {
+              method: "PATCH",
+              json: { siteAreaId: areaId, placementNote: note },
+            }, 10000);
+            window.Green.toast("設置場所の割当を更新しました。", "success");
+            listEl.innerHTML = '<div class="owner-empty">更新内容を再読み込みしています…</div>';
+            setTimeout(() => ensureInstallationItemClarity().catch(() => {}), 50);
+          } catch (error) {
+            window.Green.toast(error?.message || "割当を更新できませんでした。", "error");
+          } finally {
+            button.disabled = false;
+            button.textContent = original;
+          }
+        });
+      });
     } catch {
-      // Keep the existing detail display if enrichment fails.
+      // Keep the base owner.js detail display usable even if enrichment fails.
     } finally {
       body.dataset.greenInstallationItemsLoading = "0";
     }
