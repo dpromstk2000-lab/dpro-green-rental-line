@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.2-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.3-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1012,6 +1012,148 @@
     });
   }
 
+  const INSTALLATION_STATUS_LABELS = Object.freeze({
+    planning: "計画中",
+    asset_selecting: "植物選定中",
+    asset_reserved: "確保済み",
+    scheduled: "設置予定",
+    loading: "積込中",
+    in_transit: "搬送中",
+    installing: "設置作業中",
+    installed: "設置済み",
+    postponed: "延期",
+    cancelled: "取消",
+  });
+
+  function installationStatusOptions(selected) {
+    return Object.entries(INSTALLATION_STATUS_LABELS)
+      .filter(([value]) => value !== "installed" || selected === "installed")
+      .map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${esc(label)}</option>`)
+      .join("");
+  }
+
+  function updateInstallationDetailCard(labelText, valueText) {
+    const body = $("#dialog-body", dialog);
+    if (!body) return;
+    for (const item of $$(".owner-detail-item", body)) {
+      const small = $("small", item);
+      const strong = $("strong", item);
+      if (small?.textContent?.trim() === labelText && strong) {
+        strong.textContent = valueText;
+        return;
+      }
+    }
+  }
+
+  async function ensureInstallationEditPanel() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "INSTALLATION DETAIL") return;
+
+    const body = $("#dialog-body", dialog);
+    if (!body || body.querySelector("[data-green-installation-edit]")) return;
+    if (body.dataset.greenInstallationEditLoading === "1") return;
+
+    const title = $("#dialog-title", dialog)?.textContent?.trim() || "";
+    const number = title.match(/INS-\d{8}-\d+/)?.[0] || "";
+    if (!number) return;
+
+    body.dataset.greenInstallationEditLoading = "1";
+    try {
+      const listResult = await apiWithTimeout("/api/admin/installations?limit=1000", undefined, 7000);
+      const list = listResult?.data?.items || [];
+      const listItem = list.find((item) => String(item.installation_number || "") === number);
+      if (!listItem?.id) return;
+
+      const detailResult = await apiWithTimeout(`/api/admin/installations/${encodeURIComponent(listItem.id)}`, undefined, 7000);
+      const installation = detailResult?.data?.installation;
+      if (!installation) return;
+
+      const section = document.createElement("section");
+      section.className = "owner-dialog-section";
+      section.dataset.greenInstallationEdit = "1";
+
+      const installed = installation.status === "installed";
+      section.innerHTML = `
+        <h3>設置計画の内容を編集</h3>
+        <p class="green-owner-section-help">登録後でも、設置予定・お客様向けコメント・社内メモを修正できます。</p>
+        <form id="green-installation-edit-form" class="owner-form-grid">
+          <label>状態
+            <select name="status"${installed ? " disabled" : ""}>
+              ${installationStatusOptions(installation.status || "planning")}
+            </select>
+            ${installed ? "<small>設置済みの状態は完了処理で確定されています。</small>" : ""}
+          </label>
+          <label>設置予定日時
+            <input type="datetime-local" name="scheduledAt" step="900" value="${esc(toLocalInput(installation.scheduled_at))}">
+            <small>現在以降・15分刻み</small>
+          </label>
+          <label class="full">お客様向けコメント
+            <textarea name="customerComment">${esc(installation.customer_comment || "")}</textarea>
+          </label>
+          <label class="full">社内メモ
+            <textarea name="internalNote">${esc(installation.internal_note || "")}</textarea>
+          </label>
+        </form>
+        <div class="owner-dialog-actions">
+          <button type="button" class="btn btn--primary" id="green-save-installation-edit">内容を保存</button>
+        </div>`;
+
+      const grid = $(".owner-detail-grid", body);
+      if (grid?.nextSibling) body.insertBefore(section, grid.nextSibling);
+      else if (grid) grid.after(section);
+      else body.prepend(section);
+
+      const save = $("#green-save-installation-edit", section);
+      save?.addEventListener("click", async () => {
+        const form = $("#green-installation-edit-form", section);
+        const scheduledInput = $('[name="scheduledAt"]', form);
+        const scheduledAt = scheduledInput?.value || "";
+
+        if (scheduledAt && !isQuarterMinute(scheduledAt)) {
+          showFormError(form, "設置予定日時を確認してください", "00分・15分・30分・45分のいずれかで入力してください。");
+          scheduledInput?.focus();
+          return;
+        }
+        if (scheduledAt && !isFutureDateTime(scheduledAt)) {
+          showFormError(form, "設置予定日時を確認してください", "過去の日時は指定できません。");
+          scheduledInput?.focus();
+          return;
+        }
+
+        const statusSelect = $('[name="status"]', form);
+        const payload = {
+          scheduledAt: scheduledAt ? localInputToIso(scheduledAt) : "",
+          customerComment: $('[name="customerComment"]', form)?.value || "",
+          internalNote: $('[name="internalNote"]', form)?.value || "",
+        };
+        if (!installed && statusSelect) payload.status = statusSelect.value;
+
+        save.disabled = true;
+        const original = save.textContent;
+        save.textContent = "保存中…";
+        try {
+          const result = await apiWithTimeout(`/api/admin/installations/${encodeURIComponent(installation.id)}`, {
+            method: "PATCH",
+            json: payload,
+          }, 10000);
+          const updated = result?.data?.installation || {};
+          window.Green.toast("設置計画の内容を更新しました。", "success");
+          updateInstallationDetailCard("状態", INSTALLATION_STATUS_LABELS[updated.status || payload.status || installation.status] || updated.status || installation.status);
+          updateInstallationDetailCard("設置予定", updated.scheduled_at ? formatLocalDateTime(updated.scheduled_at) : "未設定");
+        } catch (error) {
+          showFormError(form, "保存できませんでした", error?.message || "通信を確認して、もう一度保存してください。", error?.requestId ? `確認番号：${error.requestId}` : "");
+        } finally {
+          save.disabled = false;
+          save.textContent = original;
+        }
+      });
+    } catch {
+      // Existing installation detail remains usable even when the edit helper cannot load.
+    } finally {
+      body.dataset.greenInstallationEditLoading = "0";
+    }
+  }
+
   function featureSettingValue(features, key, fallback) {
     const item = features?.[key];
     return item && typeof item === "object" && "value" in item ? item.value : fallback;
@@ -1253,6 +1395,7 @@
     syncServiceStatusFromCustomer().catch(() => {});
     ensureIntegratedContainerModelField().catch(() => {});
     ensureIntegratedContainerModelDetail().catch(() => {});
+    ensureInstallationEditPanel().catch(() => {});
     const observer = new MutationObserver(() => {
       ensurePhoneHelp();
       ensureSiteCheckHelp();
@@ -1263,6 +1406,7 @@
       syncServiceStatusFromCustomer().catch(() => {});
       ensureIntegratedContainerModelField().catch(() => {});
       ensureIntegratedContainerModelDetail().catch(() => {});
+      ensureInstallationEditPanel().catch(() => {});
     });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
