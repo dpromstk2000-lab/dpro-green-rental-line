@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.1-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.2-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1012,6 +1012,106 @@
     });
   }
 
+  function featureSettingValue(features, key, fallback) {
+    const item = features?.[key];
+    return item && typeof item === "object" && "value" in item ? item.value : fallback;
+  }
+
+  function containerModelLabel(item) {
+    const typeLabel = { pot: "鉢", cover: "鉢カバー", planter: "プランター", stand: "スタンド", other: "その他" }[item?.container_type] || item?.container_type || "";
+    const detail = [typeLabel, item?.size_code, item?.material, item?.color_name].filter(Boolean).join("／");
+    return `${item?.model_name || item?.model_code || "鉢モデル"}${detail ? `（${detail}）` : ""}`;
+  }
+
+  async function ensureIntegratedContainerModelField() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "PLANT ASSET") return;
+
+    const form = $("#asset-form", dialog);
+    if (!form || form.dataset.greenIntegratedPotReady === "1") return;
+    form.dataset.greenIntegratedPotReady = "loading";
+
+    try {
+      const [featureResult, modelResult] = await Promise.all([
+        apiWithTimeout("/api/admin/features", undefined, 7000),
+        apiWithTimeout("/api/admin/container-models", undefined, 7000),
+      ]);
+      const mode = featureSettingValue(featureResult?.data?.features, "container_management_mode", "with_plant");
+      if (mode !== "with_plant") {
+        form.dataset.greenIntegratedPotReady = "1";
+        return;
+      }
+
+      const models = modelResult?.data?.items || [];
+      let selectedId = "";
+      const assetCodeInput = form.querySelector('[name="assetCode"]');
+      const assetCode = assetCodeInput?.value?.trim() || "";
+      if (assetCode && assetCodeInput?.readOnly) {
+        try {
+          const assetResult = await apiWithTimeout(`/api/admin/assets?type=plant&search=${encodeURIComponent(assetCode)}&limit=10`, undefined, 7000);
+          const asset = (assetResult?.data?.plants || []).find((item) => String(item.asset_code || "").toUpperCase() === assetCode.toUpperCase());
+          selectedId = asset?.metadata?.container_model_id || "";
+        } catch {}
+      }
+
+      const label = document.createElement("label");
+      label.className = "green-integrated-container-model";
+      label.innerHTML = `<span>鉢モデル</span><select name="containerModelId">
+        <option value="">未設定</option>
+        ${models.map((item) => `<option value="${esc(item.id)}"${item.id === selectedId ? " selected" : ""}>${esc(containerModelLabel(item))}</option>`).join("")}
+      </select><small>鉢を植物と一体管理する設定です。鉢カバー・卓上鉢などのモデルを植物資産に記録します。</small>`;
+
+      const acquired = form.querySelector('[name="acquiredOn"]')?.closest("label");
+      if (acquired) acquired.before(label);
+      else form.append(label);
+
+      form.dataset.greenIntegratedPotReady = "1";
+    } catch {
+      form.dataset.greenIntegratedPotReady = "0";
+    }
+  }
+
+  async function ensureIntegratedContainerModelDetail() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "PLANT ASSET" || $("#asset-form", dialog)) return;
+
+    const grid = $(".owner-detail-grid", dialog);
+    if (!grid || grid.querySelector("[data-green-integrated-pot-detail]")) return;
+
+    const title = $("#dialog-title", dialog)?.textContent?.trim() || "";
+    const assetCode = title.split(/\s+/)[0] || "";
+    if (!assetCode) return;
+
+    grid.dataset.greenIntegratedPotLoading = grid.dataset.greenIntegratedPotLoading || "1";
+    if (grid.dataset.greenIntegratedPotLoading === "done") return;
+
+    try {
+      const [assetResult, modelResult, featureResult] = await Promise.all([
+        apiWithTimeout(`/api/admin/assets?type=plant&search=${encodeURIComponent(assetCode)}&limit=10`, undefined, 7000),
+        apiWithTimeout("/api/admin/container-models", undefined, 7000),
+        apiWithTimeout("/api/admin/features", undefined, 7000),
+      ]);
+      const mode = featureSettingValue(featureResult?.data?.features, "container_management_mode", "with_plant");
+      if (mode !== "with_plant") {
+        grid.dataset.greenIntegratedPotLoading = "done";
+        return;
+      }
+
+      const asset = (assetResult?.data?.plants || []).find((item) => String(item.asset_code || "").toUpperCase() === assetCode.toUpperCase());
+      const modelId = asset?.metadata?.container_model_id || "";
+      const model = (modelResult?.data?.items || []).find((item) => item.id === modelId);
+
+      const item = document.createElement("div");
+      item.className = "owner-detail-item";
+      item.dataset.greenIntegratedPotDetail = "1";
+      item.innerHTML = `<small>鉢モデル（一体管理）</small><strong>${esc(model ? containerModelLabel(model) : "未設定")}</strong>`;
+      grid.append(item);
+      grid.dataset.greenIntegratedPotLoading = "done";
+    } catch {
+      grid.dataset.greenIntegratedPotLoading = "";
+    }
+  }
+
   async function syncServiceStatusFromCustomer() {
     const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
     if (kicker !== "SERVICE STATUS") return;
@@ -1151,7 +1251,19 @@
     applySiteCheckRules();
     ensureSiteDetailActions();
     syncServiceStatusFromCustomer().catch(() => {});
-    const observer = new MutationObserver(() => { ensurePhoneHelp(); ensureSiteCheckHelp(); applyScheduleRules(); applySiteCheckRules(); applyCustomerLedgerCopy(); ensureSiteDetailActions(); syncServiceStatusFromCustomer().catch(() => {}); });
+    ensureIntegratedContainerModelField().catch(() => {});
+    ensureIntegratedContainerModelDetail().catch(() => {});
+    const observer = new MutationObserver(() => {
+      ensurePhoneHelp();
+      ensureSiteCheckHelp();
+      applyScheduleRules();
+      applySiteCheckRules();
+      applyCustomerLedgerCopy();
+      ensureSiteDetailActions();
+      syncServiceStatusFromCustomer().catch(() => {});
+      ensureIntegratedContainerModelField().catch(() => {});
+      ensureIntegratedContainerModelDetail().catch(() => {});
+    });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
     setInterval(updateSessionCountdown, 30000);
