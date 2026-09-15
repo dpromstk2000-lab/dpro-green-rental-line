@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#12382d">
   <meta name="robots" content="noindex,nofollow">
   <title>本日の巡回｜DPRO GREEN</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="staff.css">
+  <link rel="stylesheet" href="styles.css?v=GREEN-STAFF-R2.7-20260915">
+  <link rel="stylesheet" href="staff.css?v=GREEN-STAFF-R2.7-20260915">
 </head>
 <body class="staff-body">
   <section class="staff-login" id="staff-login-view">
@@ -57,6 +57,6 @@
     </div>
   </dialog>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
-  <script src="config.js"></script><script src="green-common.js"></script><script src="staff.js"></script>
+  <script src="config.js?v=GREEN-STAFF-R2.7-20260915"></script><script src="green-common.js?v=GREEN-STAFF-R2.7-20260915"></script><script src="staff.js?v=GREEN-STAFF-R2.7-20260915"></script>
 </body>
 </html>
