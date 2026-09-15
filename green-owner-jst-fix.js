@@ -1,11 +1,23 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.1-20260915";
+  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.2-20260915";
+  const REPLACEMENT_CANDIDATE_FIX_VERSION = "GREEN-REPLACEMENT-CANDIDATE-FIX-R1.0-20260915";
   if (!/\/owner\.html$/.test(location.pathname)) return;
   if (typeof window.fetch !== "function") return;
 
   document.documentElement.dataset.greenOwnerJstDatetimeFix = VERSION;
+
+  function installReplacementCandidateFix() {
+    if (document.querySelector('script[data-green-replacement-candidate-fix]')) return;
+    const script = document.createElement("script");
+    script.src = `green-replacement-candidate-fix.js?v=${encodeURIComponent(REPLACEMENT_CANDIDATE_FIX_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenReplacementCandidateFix = REPLACEMENT_CANDIDATE_FIX_VERSION;
+    document.head.append(script);
+  }
+
+  installReplacementCandidateFix();
 
   const originalFetch = window.fetch.bind(window);
   let lastReplacementScheduledAt = "";
