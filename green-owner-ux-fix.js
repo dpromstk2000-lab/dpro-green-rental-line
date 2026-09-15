@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.6-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.9-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1554,6 +1554,72 @@
     document.querySelectorAll(".toast").forEach(mirrorToast);
   }
 
+
+  let replacementPlantPromise = null;
+
+  async function loadReplacementPlants() {
+    if (!replacementPlantPromise) {
+      replacementPlantPromise = Green.api("/api/admin/assets?type=plant&limit=500")
+        .then((result) => result?.data?.plants || [])
+        .catch((error) => {
+          replacementPlantPromise = null;
+          throw error;
+        });
+    }
+    return replacementPlantPromise;
+  }
+
+  async function installReplacementSiteAssetFilter() {
+    const form = $("#replacement-form", dialog);
+    if (!form || form.dataset.greenReplacementSiteFilter === VERSION) return;
+
+    const customer = form.elements.customerId;
+    const site = form.elements.siteId;
+    const oldAsset = form.elements.oldPlantAssetId;
+    if (!customer || !site || !oldAsset) return;
+
+    form.dataset.greenReplacementSiteFilter = VERSION;
+    const originalLabels = new Map(
+      Array.from(oldAsset.options)
+        .filter((option) => option.value)
+        .map((option) => [option.value, option.textContent || option.value])
+    );
+
+    const hint = document.createElement("small");
+    hint.className = "green-owner-field-hint";
+    hint.textContent = "選択した拠点に現在設置中の植物だけを表示します。";
+    oldAsset.closest("label")?.appendChild(hint);
+
+    const plants = await loadReplacementPlants();
+
+    const refresh = () => {
+      const siteId = String(site.value || "");
+      const previous = String(oldAsset.value || "");
+      const candidates = siteId
+        ? plants.filter((item) => item && item.is_active !== false && item.asset_status === "installed" && String(item.current_site_id || "") === siteId)
+        : [];
+
+      oldAsset.innerHTML = '<option value="">対象植物を選択</option>' + candidates.map((item) => {
+        const value = String(item.id || "");
+        const label = originalLabels.get(value) || `${item.display_name || item.asset_code || "植物"}（${item.asset_code || value}）`;
+        return `<option value="${esc(value)}">${esc(label)}</option>`;
+      }).join("");
+
+      oldAsset.disabled = !siteId;
+      if (previous && candidates.some((item) => String(item.id) === previous)) oldAsset.value = previous;
+
+      hint.textContent = !siteId
+        ? "先に拠点を選択してください。"
+        : candidates.length
+          ? `この拠点に設置中の植物 ${candidates.length}鉢から選択できます。`
+          : "この拠点に交換対象として選べる設置中植物はありません。";
+    };
+
+    customer.addEventListener("change", () => setTimeout(refresh, 0));
+    site.addEventListener("change", refresh);
+    refresh();
+  }
+
   function boot() {
     normalizeDialogShell();
     installDialogFeedbackBridge();
@@ -1573,6 +1639,7 @@
     ensureIntegratedContainerModelDetail().catch(() => {});
     ensureInstallationEditPanel().catch(() => {});
     ensureInstallationItemClarity().catch(() => {});
+    installReplacementSiteAssetFilter().catch(() => {});
     const observer = new MutationObserver(() => {
       ensurePhoneHelp();
       ensureSiteCheckHelp();
@@ -1585,6 +1652,7 @@
       ensureIntegratedContainerModelDetail().catch(() => {});
       ensureInstallationEditPanel().catch(() => {});
       ensureInstallationItemClarity().catch(() => {});
+      installReplacementSiteAssetFilter().catch(() => {});
     });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
