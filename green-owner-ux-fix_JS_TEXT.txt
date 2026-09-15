@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.5-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.6-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1517,8 +1517,46 @@
     status.textContent = hours ? `ログイン残り ${hours}時間${mins ? `${mins}分` : ""}` : `ログイン残り ${minutes}分`;
   }
 
+  function installDialogFeedbackBridge() {
+    if (document.documentElement.dataset.greenDialogFeedbackBridge === "1") return;
+    document.documentElement.dataset.greenDialogFeedbackBridge = "1";
+
+    const mirrorToast = (toast) => {
+      if (!(toast instanceof HTMLElement) || !toast.classList.contains("toast")) return;
+      if (!dialog?.open || toast.dataset.greenDialogMirrored === "1") return;
+      const body = $("#dialog-body", dialog);
+      if (!body) return;
+
+      toast.dataset.greenDialogMirrored = "1";
+      body.querySelectorAll(".green-dialog-feedback").forEach((node) => node.remove());
+
+      const isError = toast.classList.contains("toast-error");
+      const isSuccess = toast.classList.contains("toast-success");
+      const box = document.createElement("div");
+      box.className = `green-dialog-feedback ${isError ? "green-owner-inline-error" : "green-owner-inline-warning"}`;
+      box.setAttribute("role", isError ? "alert" : "status");
+      box.innerHTML = `<strong>${isError ? "処理できませんでした" : isSuccess ? "処理結果" : "お知らせ"}</strong><span>${esc(toast.textContent || "")}</span>`;
+      body.prepend(box);
+      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.classList.contains("toast")) mirrorToast(node);
+          node.querySelectorAll?.(".toast").forEach(mirrorToast);
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    document.querySelectorAll(".toast").forEach(mirrorToast);
+  }
+
   function boot() {
     normalizeDialogShell();
+    installDialogFeedbackBridge();
   setTimeout(() => { resumePendingSiteHandoff().catch(() => {}); }, 250);
     installLeadClickFix();
     installPhoneFix();
