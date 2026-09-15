@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-UX-FIX-R2.3-20260915";
+  const VERSION = "GREEN-OWNER-UX-FIX-R2.4-20260915";
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const dialog = $("#owner-dialog");
@@ -1012,6 +1012,78 @@
     });
   }
 
+  const INSTALLATION_ITEM_STATUS_LABELS = Object.freeze({
+    inventory: "在庫",
+    reserved: "確保済み",
+    preparing: "準備中",
+    loaded: "積込済み",
+    installed: "設置済み",
+    recovered: "回収済み",
+    cancelled: "取消",
+  });
+
+  async function ensureInstallationItemClarity() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim() || "";
+    if (kicker !== "INSTALLATION DETAIL") return;
+
+    const body = $("#dialog-body", dialog);
+    if (!body || body.dataset.greenInstallationItemsReady === "1" || body.dataset.greenInstallationItemsLoading === "1") return;
+
+    const sections = $$(".owner-dialog-section", body);
+    const section = sections.find((item) => $("h3", item)?.textContent?.trim() === "一鉢資産");
+    if (!section) return;
+
+    const title = $("#dialog-title", dialog)?.textContent?.trim() || "";
+    const number = title.match(/INS-\d{8}-\d+/)?.[0] || "";
+    if (!number) return;
+
+    body.dataset.greenInstallationItemsLoading = "1";
+    try {
+      const listResult = await apiWithTimeout("/api/admin/installations?limit=1000", undefined, 7000);
+      const list = listResult?.data?.items || [];
+      const listItem = list.find((item) => String(item.installation_number || "") === number);
+      if (!listItem?.id) return;
+
+      const detailResult = await apiWithTimeout(`/api/admin/installations/${encodeURIComponent(listItem.id)}`, undefined, 7000);
+      const installation = detailResult?.data?.installation;
+      const items = detailResult?.data?.items || [];
+      if (!installation) return;
+
+      const [siteResult, assetResult] = await Promise.all([
+        apiWithTimeout(`/api/admin/sites/${encodeURIComponent(installation.site_id)}`, undefined, 7000),
+        apiWithTimeout("/api/admin/assets?type=plant&limit=500", undefined, 7000),
+      ]);
+
+      const areas = siteResult?.data?.areas || [];
+      const areaMap = new Map(areas.map((item) => [item.id, item]));
+      const assets = assetResult?.data?.plants || [];
+      const assetMap = new Map(assets.map((item) => [item.id, item]));
+
+      const listEl = $(".owner-mini-list", section);
+      if (!listEl) return;
+
+      listEl.innerHTML = items.length
+        ? items.map((item) => {
+            const asset = assetMap.get(item.plant_asset_id);
+            const area = areaMap.get(item.site_area_id);
+            const status = INSTALLATION_ITEM_STATUS_LABELS[item.item_status] || item.item_status || "未設定";
+            return `<div class="owner-mini-item">
+              <strong>${esc(asset?.asset_code || "植物未取得")}</strong>
+              <span>状態：${esc(status)}</span>
+              <span>設置場所：${esc(area?.area_name || "未設定")}</span>
+              <span>${esc(item.placement_note || "配置メモなし")}</span>
+            </div>`;
+          }).join("")
+        : '<div class="owner-empty">登録はありません。</div>';
+
+      body.dataset.greenInstallationItemsReady = "1";
+    } catch {
+      // Keep the existing detail display if enrichment fails.
+    } finally {
+      body.dataset.greenInstallationItemsLoading = "0";
+    }
+  }
+
   const INSTALLATION_STATUS_LABELS = Object.freeze({
     planning: "計画中",
     asset_selecting: "植物選定中",
@@ -1396,6 +1468,7 @@
     ensureIntegratedContainerModelField().catch(() => {});
     ensureIntegratedContainerModelDetail().catch(() => {});
     ensureInstallationEditPanel().catch(() => {});
+    ensureInstallationItemClarity().catch(() => {});
     const observer = new MutationObserver(() => {
       ensurePhoneHelp();
       ensureSiteCheckHelp();
@@ -1407,6 +1480,7 @@
       ensureIntegratedContainerModelField().catch(() => {});
       ensureIntegratedContainerModelDetail().catch(() => {});
       ensureInstallationEditPanel().catch(() => {});
+      ensureInstallationItemClarity().catch(() => {});
     });
     observer.observe(dialog, { childList: true, subtree: true });
     updateSessionCountdown();
