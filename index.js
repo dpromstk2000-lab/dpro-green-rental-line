@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const VERSION = "GREEN-PUBLIC-ANNOUNCEMENT-R1.0-20260916";
   const { api, uploadPhoto, compressImage, uuid, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
   const form = document.querySelector("#inquiry-form");
@@ -10,6 +11,16 @@
   const preview = document.querySelector("#photo-preview");
   const categoryCards = [...document.querySelectorAll("[data-category]")];
   let selectedFiles = [];
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>'"]/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;",
+    })[char]);
+  }
 
   async function initialize() {
     bindEvents();
@@ -148,17 +159,25 @@
   initialize();
 
   async function loadPublicSiteProfile() {
-    const region = document.querySelector('#public-announcements');
+    const region = document.querySelector("#public-announcements");
     if (!region) return;
     try {
-      const response = await Green.api('/api/public/site-profile?target=public_form');
+      const response = await Green.api("/api/public/site-profile?target=public_form");
       const profile = response.data || {};
-      document.querySelectorAll('[data-facility-name]').forEach((node) => { if (profile.facilityName) node.textContent = profile.facilityName; });
+      document.querySelectorAll("[data-facility-name]").forEach((node) => {
+        if (profile.facilityName) node.textContent = profile.facilityName;
+      });
       const items = profile.announcements || [];
       region.hidden = items.length === 0;
-      region.innerHTML = items.map((item) => `<article class="green12-public-notice${item.isImportant ? ' is-important' : ''}"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body).replace(/\n/g,'<br>')}</p>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ''}</article>`).join('');
-    } catch { region.hidden = true; }
+      region.innerHTML = items.map((item) =>
+        `<article class="green12-public-notice${item.isImportant ? " is-important" : ""}"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body).replace(/\n/g,"<br>")}</p>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ""}</article>`
+      ).join("");
+    } catch (error) {
+      console.warn(`[DPRO GREEN] ${VERSION} public announcement load failed`, error);
+      region.hidden = true;
+    }
   }
 
   loadPublicSiteProfile();
+  console.info(`[DPRO GREEN] ${VERSION} active`);
 })();
