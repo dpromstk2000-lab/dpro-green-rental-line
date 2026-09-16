@@ -27,7 +27,6 @@ window.GREEN_CONFIG = Object.freeze({
   }),
 });
 
-
 window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
 
 (() => {
@@ -36,6 +35,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
   const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
   const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R2.9-20260915";
+  const OWNER_JST_FIX_VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.4-20260916";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -185,6 +185,16 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     }
   }
 
+  function installOwnerJstDatetimeFix() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (document.querySelector('script[data-green-owner-jst-fix]')) return;
+    const script = document.createElement("script");
+    script.src = `green-owner-jst-fix.js?v=${encodeURIComponent(OWNER_JST_FIX_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenOwnerJstFix = OWNER_JST_FIX_VERSION;
+    document.head.append(script);
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
@@ -192,6 +202,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installShopModule();
     installOwnerFlowClarity();
     installOwnerUxFix();
+    installOwnerJstDatetimeFix();
     installContactFlowCopy();
   }
 
