@@ -1,33 +1,31 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.1-20260916";
+  const VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.2-20260916";
   if (!/\/owner\.html$/.test(location.pathname)) return;
-  if (!window.Green || typeof window.Green.api !== "function") return;
-  if (window.Green.api.__greenAnnouncementJstFix === VERSION) return;
 
-  const Green = window.Green;
-  const originalApi = Green.api.bind(Green);
-  let announcementMap = new Map();
-
-  function isAnnouncementPath(path) {
-    return /^\/api\/admin\/announcements(?:\/[^/?]+)?(?:\?.*)?$/.test(String(path || ""));
-  }
+  const TZ_RE = /(?:Z|[+-]\d{2}:\d{2})$/;
+  let originalApi = null;
+  let apiWrapped = false;
+  let installAttempts = 0;
 
   function withTokyoOffset(value) {
     if (value === null || value === undefined || value === "") return value || null;
     if (typeof value !== "string") return value;
     const text = value.trim();
     if (!text) return null;
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})$/.test(text)) return text;
+    if (TZ_RE.test(text)) return text;
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(text)) return value;
     return `${text.length === 16 ? `${text}:00` : text}+09:00`;
   }
 
-  function tokyoParts(value) {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
+  function toTokyoInputSmart(value) {
+    if (!value) return "";
+    const text = String(value).trim();
+    if (!TZ_RE.test(text)) return text.slice(0, 16);
+
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return text.slice(0, 16);
     const parts = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tokyo",
       year: "numeric",
@@ -38,18 +36,19 @@
       hourCycle: "h23",
     }).formatToParts(date);
     const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return map;
+    return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
   }
 
-  function toTokyoInput(value) {
-    const p = tokyoParts(value);
-    return p ? `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}` : "";
-  }
-
-  function toTokyoDisplay(value) {
+  function toTokyoDisplaySmart(value) {
     if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
+    const text = String(value).trim();
+    if (!TZ_RE.test(text)) {
+      const local = text.slice(0, 19).replace("T", " ");
+      return local.replace(/^(\d{4})-(\d{2})-(\d{2}) /, "$1/$2/$3 ");
+    }
+
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return text;
     return new Intl.DateTimeFormat("ja-JP", {
       timeZone: "Asia/Tokyo",
       year: "numeric",
@@ -57,116 +56,105 @@
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      second: "2-digit",
       hourCycle: "h23",
     }).format(date);
   }
 
-  function patchAnnouncementJson(options) {
-    if (!options || typeof options !== "object" || !options.json || typeof options.json !== "object") return options;
-    const json = { ...options.json };
-    if (Object.prototype.hasOwnProperty.call(json, "publishFrom")) json.publishFrom = withTokyoOffset(json.publishFrom);
-    if (Object.prototype.hasOwnProperty.call(json, "publishUntil")) json.publishUntil = withTokyoOffset(json.publishUntil);
-    return { ...options, json };
+  function isAnnouncementPath(path) {
+    return /^\/api\/admin\/announcements(?:\/[^/?]+)?(?:\?.*)?$/.test(String(path || ""));
   }
 
-  function captureAnnouncements(payload) {
-    const items = payload?.data?.items;
-    if (!Array.isArray(items)) return;
-    announcementMap = new Map(items.map((row) => [String(row.id), row]));
-    setTimeout(syncAnnouncementPeriods, 0);
-  }
-
-  async function refreshAnnouncements() {
-    const payload = await originalApi('/api/admin/announcements');
-    captureAnnouncements(payload);
-    return payload;
-  }
-
-  async function patchedApi(path, options = {}) {
-    const method = String(options?.method || "GET").toUpperCase();
-    let nextOptions = options;
-    if (isAnnouncementPath(path) && ["POST", "PATCH", "PUT"].includes(method)) {
-      nextOptions = patchAnnouncementJson(options);
+  function tryInstallApiWrapper() {
+    if (apiWrapped) return true;
+    const Green = window.Green;
+    if (!Green || typeof Green.api !== "function") {
+      installAttempts += 1;
+      if (installAttempts < 200) setTimeout(tryInstallApiWrapper, 25);
+      return false;
     }
-    const payload = await originalApi(path, nextOptions);
-    if (String(path).split("?")[0] === "/api/admin/announcements" && method === "GET") {
-      captureAnnouncements(payload);
+
+    originalApi = Green.api.bind(Green);
+
+    async function patchedApi(path, options = {}) {
+      const method = String(options?.method || "GET").toUpperCase();
+      let nextOptions = options;
+
+      if (isAnnouncementPath(path)
+          && ["POST", "PATCH", "PUT"].includes(method)
+          && options?.json
+          && typeof options.json === "object") {
+        const json = { ...options.json };
+        if (Object.prototype.hasOwnProperty.call(json, "publishFrom")) {
+          json.publishFrom = withTokyoOffset(json.publishFrom);
+        }
+        if (Object.prototype.hasOwnProperty.call(json, "publishUntil")) {
+          json.publishUntil = withTokyoOffset(json.publishUntil);
+        }
+        nextOptions = { ...options, json };
+      }
+
+      return originalApi(path, nextOptions);
     }
-    return payload;
+
+    patchedApi.__greenAnnouncementJstFix = VERSION;
+    Green.api = patchedApi;
+    apiWrapped = true;
+    return true;
   }
 
-  patchedApi.__greenAnnouncementJstFix = VERSION;
-  Green.api = patchedApi;
+  async function fetchAnnouncement(id) {
+    tryInstallApiWrapper();
+    const Green = window.Green;
+    if (!Green || typeof Green.api !== "function") return null;
+    const response = await Green.api("/api/admin/announcements");
+    const items = response?.data?.items;
+    if (!Array.isArray(items)) return null;
+    return items.find((item) => String(item.id) === String(id)) || null;
+  }
 
-  function syncAnnouncementEditor(id = "") {
+  function applyEditorItem(item) {
+    if (!item) return;
+    const id = document.querySelector("#announcement-id");
+    if (!id || String(id.value) !== String(item.id)) return;
+
     const editor = document.querySelector("#announcement-editor");
     if (!editor || editor.hidden) return;
-    const itemId = String(id || document.querySelector("#announcement-id")?.value || "");
-    if (!itemId) return;
-    const item = announcementMap.get(itemId);
-    if (!item) return;
-
-    const key = `${itemId}|${item.publish_from || ""}|${item.publish_until || ""}`;
-    if (editor.dataset.greenAnnouncementJstSynced === key) return;
 
     const from = document.querySelector("#announcement-from");
     const until = document.querySelector("#announcement-until");
-    if (from) from.value = toTokyoInput(item.publish_from);
-    if (until) until.value = toTokyoInput(item.publish_until);
-    editor.dataset.greenAnnouncementJstSynced = key;
+    if (from) from.value = toTokyoInputSmart(item.publish_from);
+    if (until) until.value = toTokyoInputSmart(item.publish_until);
   }
 
-  function syncAnnouncementPeriods() {
-    document.querySelectorAll("[data-edit-announcement]").forEach((button) => {
-      const id = String(button.dataset.editAnnouncement || "");
-      const item = announcementMap.get(id);
-      const article = button.closest(".green12-list-item");
-      const period = article?.querySelector("small");
-      if (!item || !period) return;
-      const from = item.publish_from ? toTokyoDisplay(item.publish_from) : "すぐ公開";
-      const until = item.publish_until ? toTokyoDisplay(item.publish_until) : "終了日なし";
-      period.textContent = `${from}〜${until}`;
-    });
+  function applyPeriod(button, item) {
+    const article = button?.closest(".green12-list-item");
+    const period = article?.querySelector("small");
+    if (!period || !item) return;
+    const from = item.publish_from ? toTokyoDisplaySmart(item.publish_from) : "すぐ公開";
+    const until = item.publish_until ? toTokyoDisplaySmart(item.publish_until) : "終了日なし";
+    period.textContent = `${from}〜${until}`;
   }
 
   document.addEventListener("click", (event) => {
     const editButton = event.target.closest?.("[data-edit-announcement]");
-    if (editButton) {
-      const id = editButton.dataset.editAnnouncement || "";
-      setTimeout(async () => {
-        if (!announcementMap.has(String(id))) {
-          try { await refreshAnnouncements(); } catch {}
-        }
-        syncAnnouncementEditor(id);
-      }, 0);
-      return;
-    }
+    if (!editButton) return;
 
-    const newButton = event.target.closest?.("#announcement-new");
-    if (newButton) {
-      const editor = document.querySelector("#announcement-editor");
-      if (editor) delete editor.dataset.greenAnnouncementJstSynced;
-    }
-  }, true);
+    const itemId = String(editButton.dataset.editAnnouncement || "");
+    if (!itemId) return;
 
-  const editor = document.querySelector("#announcement-editor");
-  if (editor) {
-    const observer = new MutationObserver(() => {
-      if (editor.hidden) {
-        delete editor.dataset.greenAnnouncementJstSynced;
-        return;
-      }
-      setTimeout(() => syncAnnouncementEditor(), 0);
-    });
-    observer.observe(editor, { attributes: true, attributeFilter: ["hidden"] });
-  }
+    // Existing green12 click handler runs on the button before this bubble handler.
+    // Fetch the canonical API row afterwards, then overwrite only the datetime inputs.
+    setTimeout(async () => {
+      const item = await fetchAnnouncement(itemId).catch(() => null);
+      if (!item) return;
+      applyEditorItem(item);
+      applyPeriod(editButton, item);
+    }, 0);
+  }, false);
 
-  const list = document.querySelector("#announcement-list");
-  if (list) {
-    const observer = new MutationObserver(() => setTimeout(syncAnnouncementPeriods, 0));
-    observer.observe(list, { childList: true, subtree: true });
-  }
+  // Ensure the API wrapper installs even when this script loads before green-common.js.
+  tryInstallApiWrapper();
 
-  refreshAnnouncements().catch(() => {});
   console.info(`[DPRO GREEN] ${VERSION} active`);
 })();
