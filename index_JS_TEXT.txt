@@ -13,7 +13,7 @@
   let selectedFiles = [];
 
 
-  const CLEAN_DATE_DISPLAY_VERSION = "GREEN-CLEAN-DATETIME-R1.1-20260916";
+  const CLEAN_DATE_DISPLAY_VERSION = "GREEN-CLEAN-DATETIME-R1.2-20260916";
 
   function ensureCleanDateStyles() {
     if (document.querySelector(`style[data-green-clean-datetime="${CLEAN_DATE_DISPLAY_VERSION}"]`)) return;
@@ -22,9 +22,9 @@
     style.textContent = `
       .green-clean-date-wrap { display:grid; grid-template-columns:minmax(0,1fr) 46px; gap:8px; align-items:stretch; width:100%; position:relative; }
       .green-clean-date-display { width:100%; min-width:0; }
-      .green-clean-date-button { min-width:46px; min-height:46px; padding:0; border:1px solid #cbd7ce; border-radius:12px; background:#fff; color:inherit; font:inherit; font-size:20px; cursor:pointer; }
-      .green-clean-date-button:hover { background:#f7faf7; }
-      .green-clean-date-native { position:absolute !important; left:-10000px !important; top:auto !important; width:1px !important; min-width:1px !important; height:1px !important; min-height:1px !important; padding:0 !important; margin:0 !important; opacity:0 !important; pointer-events:none !important; }
+      .green-clean-date-picker { position:relative; min-width:46px; min-height:46px; border:1px solid #cbd7ce; border-radius:12px; background:#fff; display:grid; place-items:center; overflow:hidden; cursor:pointer; }
+      .green-clean-date-picker:hover { background:#f7faf7; } .green-clean-date-picker-icon { pointer-events:none; font-size:20px; line-height:1; }
+      .green-clean-date-native { position:absolute !important; inset:0 !important; width:100% !important; min-width:100% !important; height:100% !important; min-height:100% !important; padding:0 !important; margin:0 !important; border:0 !important; opacity:0 !important; pointer-events:auto !important; cursor:pointer !important; z-index:2 !important; }
     `;
     document.head.append(style);
   }
@@ -76,14 +76,14 @@
     ensureCleanDateStyles();
     const wrapper = document.createElement("span"); wrapper.className = "green-clean-date-wrap"; wrapper.dataset.greenCleanDateWrap = CLEAN_DATE_DISPLAY_VERSION;
     const display = document.createElement("input"); display.type = "text"; display.className = "green-clean-date-display"; display.inputMode = "numeric"; display.autocomplete = "off"; display.placeholder = "YYYY/MM/DD HH:mm"; display.value = cleanDateDisplayValue(input.value); display.setAttribute("aria-label", "日時");
-    const button = document.createElement("button"); button.type = "button"; button.className = "green-clean-date-button"; button.setAttribute("aria-label", "日時をカレンダーから選択"); button.title = "日時をカレンダーから選択"; button.textContent = "📅";
-    input.dataset.greenCleanDateFixed = CLEAN_DATE_DISPLAY_VERSION; input.classList.add("green-clean-date-native"); input.tabIndex = -1;
-    input.parentNode.insertBefore(wrapper, input); wrapper.append(display, button, input);
+    const picker = document.createElement("span"); picker.className = "green-clean-date-picker"; picker.title = "日時をカレンダーから選択"; const pickerIcon = document.createElement("span"); pickerIcon.className = "green-clean-date-picker-icon"; pickerIcon.textContent = "📅"; picker.append(pickerIcon);
+    input.dataset.greenCleanDateFixed = CLEAN_DATE_DISPLAY_VERSION; input.classList.add("green-clean-date-native"); input.setAttribute("aria-label", "日時をカレンダーから選択");
+    input.parentNode.insertBefore(wrapper, input); picker.append(input); wrapper.append(display, picker);
     display.addEventListener("input", () => { const parsed = parseCleanDateDisplay(display.value); if (parsed === "") { input.value = ""; display.setCustomValidity(""); } else if (parsed) { input.value = parsed; display.setCustomValidity(""); } else { input.value = ""; } });
     display.addEventListener("change", () => commitCleanDateDisplay(input, display));
     display.addEventListener("blur", () => { if (display.value.trim()) commitCleanDateDisplay(input, display); else display.setCustomValidity(""); });
     input.addEventListener("input", () => syncCleanDateField(input)); input.addEventListener("change", () => syncCleanDateField(input));
-    button.addEventListener("click", () => { try { if (typeof input.showPicker === "function") input.showPicker(); else input.click(); } catch { input.click(); } });
+    // The real datetime-local input overlays the calendar cell, so the browser receives a genuine user click.
   }
 
   function installPublicCandidateCleanDates() {
