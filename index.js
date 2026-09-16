@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-PUBLIC-CANDIDATE-R1.2-20260916";
+  const VERSION = "GREEN-PUBLIC-CANDIDATE-R1.3-20260916";
   const { api, uploadPhoto, compressImage, uuid, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
   const form = document.querySelector("#inquiry-form");
@@ -13,77 +13,32 @@
   let selectedFiles = [];
 
 
-  const CLEAN_DATE_DISPLAY_VERSION = "GREEN-CLEAN-DATETIME-R1.2-20260916";
+  const CANDIDATE_SLOT_VERSION = "GREEN-CANDIDATE-SLOT-R1.0-20260916";
 
-  function ensureCleanDateStyles() {
-    if (document.querySelector(`style[data-green-clean-datetime="${CLEAN_DATE_DISPLAY_VERSION}"]`)) return;
+  function ensureCandidateSlotStyles() {
+    if (document.querySelector(`style[data-green-candidate-slot="${CANDIDATE_SLOT_VERSION}"]`)) return;
     const style = document.createElement("style");
-    style.dataset.greenCleanDatetime = CLEAN_DATE_DISPLAY_VERSION;
+    style.dataset.greenCandidateSlot = CANDIDATE_SLOT_VERSION;
     style.textContent = `
-      .green-clean-date-wrap { display:grid; grid-template-columns:minmax(0,1fr) 46px; gap:8px; align-items:stretch; width:100%; position:relative; }
-      .green-clean-date-display { width:100%; min-width:0; }
-      .green-clean-date-picker { position:relative; min-width:46px; min-height:46px; border:1px solid #cbd7ce; border-radius:12px; background:#fff; display:grid; place-items:center; overflow:hidden; cursor:pointer; }
-      .green-clean-date-picker:hover { background:#f7faf7; } .green-clean-date-picker-icon { pointer-events:none; font-size:20px; line-height:1; }
-      .green-clean-date-native { position:absolute !important; inset:0 !important; width:100% !important; min-width:100% !important; height:100% !important; min-height:100% !important; padding:0 !important; margin:0 !important; border:0 !important; opacity:0 !important; pointer-events:auto !important; cursor:pointer !important; z-index:2 !important; }
+      .green-candidate-slot {
+        display:grid;
+        grid-template-columns:minmax(0,1.25fr) minmax(128px,.75fr);
+        gap:8px;
+        width:100%;
+      }
+      .green-candidate-date,
+      .green-candidate-time {
+        width:100%;
+        min-width:0;
+      }
+      .green-candidate-native {
+        display:none !important;
+      }
+      @media (max-width:560px) {
+        .green-candidate-slot { grid-template-columns:1fr; }
+      }
     `;
     document.head.append(style);
-  }
-
-  function cleanDateDisplayValue(value) {
-    const text = String(value || "");
-    if (!text) return "";
-    const match = text.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})/);
-    return match ? `${match[1]}/${match[2]}/${match[3]} ${match[4]}:${match[5]}` : text;
-  }
-
-  function parseCleanDateDisplay(value) {
-    const text = String(value || "").trim();
-    if (!text) return "";
-    const match = text.match(/^(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2})[ T](\\d{1,2}):(\\d{2})$/);
-    if (!match) return null;
-    return `${match[1]}-${String(match[2]).padStart(2,"0")}-${String(match[3]).padStart(2,"0")}T${String(match[4]).padStart(2,"0")}:${match[5]}`;
-  }
-
-  function syncCleanDateField(input) {
-    if (!input) return;
-    const wrapper = input.closest(".green-clean-date-wrap");
-    const display = wrapper?.querySelector(".green-clean-date-display");
-    if (!display) return;
-    const next = cleanDateDisplayValue(input.value);
-    if (document.activeElement !== display && display.value !== next) display.value = next;
-    display.setCustomValidity("");
-  }
-
-  function commitCleanDateDisplay(input, display) {
-    const parsed = parseCleanDateDisplay(display.value);
-    if (parsed === null) {
-      input.value = "";
-      display.setCustomValidity("YYYY/MM/DD HH:mm 形式で入力してください。");
-      return false;
-    }
-    input.value = parsed;
-    display.value = cleanDateDisplayValue(parsed);
-    display.setCustomValidity("");
-    input.dispatchEvent(new Event("input", { bubbles:true }));
-    input.dispatchEvent(new Event("change", { bubbles:true }));
-    return true;
-  }
-
-  function installCleanDateField(input) {
-    if (!input) return;
-    if (input.dataset.greenCleanDateFixed === CLEAN_DATE_DISPLAY_VERSION) { syncCleanDateField(input); return; }
-    if (!input.matches('input[type="datetime-local"]')) return;
-    ensureCleanDateStyles();
-    const wrapper = document.createElement("span"); wrapper.className = "green-clean-date-wrap"; wrapper.dataset.greenCleanDateWrap = CLEAN_DATE_DISPLAY_VERSION;
-    const display = document.createElement("input"); display.type = "text"; display.className = "green-clean-date-display"; display.inputMode = "numeric"; display.autocomplete = "off"; display.placeholder = "YYYY/MM/DD HH:mm"; display.value = cleanDateDisplayValue(input.value); display.setAttribute("aria-label", "日時");
-    const picker = document.createElement("span"); picker.className = "green-clean-date-picker"; picker.title = "日時をカレンダーから選択"; const pickerIcon = document.createElement("span"); pickerIcon.className = "green-clean-date-picker-icon"; pickerIcon.textContent = "📅"; picker.append(pickerIcon);
-    input.dataset.greenCleanDateFixed = CLEAN_DATE_DISPLAY_VERSION; input.classList.add("green-clean-date-native"); input.setAttribute("aria-label", "日時をカレンダーから選択");
-    input.parentNode.insertBefore(wrapper, input); picker.append(input); wrapper.append(display, picker);
-    display.addEventListener("input", () => { const parsed = parseCleanDateDisplay(display.value); if (parsed === "") { input.value = ""; display.setCustomValidity(""); } else if (parsed) { input.value = parsed; display.setCustomValidity(""); } else { input.value = ""; } });
-    display.addEventListener("change", () => commitCleanDateDisplay(input, display));
-    display.addEventListener("blur", () => { if (display.value.trim()) commitCleanDateDisplay(input, display); else display.setCustomValidity(""); });
-    input.addEventListener("input", () => syncCleanDateField(input)); input.addEventListener("change", () => syncCleanDateField(input));
-    // The real datetime-local input overlays the calendar cell, so the browser receives a genuine user click.
   }
 
   function tokyoNowParts(date = new Date()) {
@@ -123,47 +78,150 @@
 
   function isValidFutureCandidate(value) {
     if (!value) return true;
-    const text = String(value);
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:(?:00|30)$/.test(text)) return false;
-    return text >= nextHalfHourTokyoValue();
+    const candidate = String(value);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:(?:00|30)$/.test(candidate)) return false;
+    return candidate >= nextHalfHourTokyoValue();
   }
 
-  function applyCandidateConstraint(input) {
-    if (!input) return;
+  function candidateTimeOptions(dateValue, selected = "") {
+    const minimum = nextHalfHourTokyoValue();
+    const options = ['<option value="">時刻を選択</option>'];
+    for (let hour = 0; hour < 24; hour += 1) {
+      for (const minute of [0, 30]) {
+        const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+        const combined = dateValue ? `${dateValue}T${time}` : "";
+        const disabled = Boolean(dateValue && combined < minimum);
+        options.push(
+          `<option value="${time}"${time === selected ? " selected" : ""}${disabled ? " disabled" : ""}>${time}</option>`
+        );
+      }
+    }
+    return options.join("");
+  }
+
+  function syncCandidateNative(input, dateInput, timeSelect, { report = false } = {}) {
+    const dateValue = dateInput.value;
+    const timeValue = timeSelect.value;
+    dateInput.setCustomValidity("");
+    timeSelect.setCustomValidity("");
+
+    if (!dateValue && !timeValue) {
+      input.value = "";
+      return true;
+    }
+
+    if (!dateValue || !timeValue) {
+      input.value = "";
+      const target = !dateValue ? dateInput : timeSelect;
+      target.setCustomValidity("日付と時刻を両方選択してください。");
+      if (report) target.reportValidity();
+      return false;
+    }
+
+    const combined = `${dateValue}T${timeValue}`;
+    if (!isValidFutureCandidate(combined)) {
+      input.value = "";
+      timeSelect.setCustomValidity("現在より後の30分枠を選択してください。");
+      if (report) timeSelect.reportValidity();
+      return false;
+    }
+
+    input.value = combined;
     input.min = nextHalfHourTokyoValue();
     input.step = "1800";
+    return true;
   }
 
-  function installPublicCandidateCleanDates() {
-    ["candidate1","candidate2","candidate3"].forEach((name) => {
-      const input = form?.elements?.[name] || null;
-      if (!input) return;
+  function refreshCandidateTimeOptions(input) {
+    const widget = input.closest(".green-candidate-slot");
+    const dateInput = widget?.querySelector(".green-candidate-date");
+    const timeSelect = widget?.querySelector(".green-candidate-time");
+    if (!dateInput || !timeSelect) return;
 
-      applyCandidateConstraint(input);
-      installCleanDateField(input);
+    const oldTime = timeSelect.value;
+    const minimum = nextHalfHourTokyoValue();
+    dateInput.min = minimum.slice(0, 10);
+    input.min = minimum;
+    input.step = "1800";
+    timeSelect.innerHTML = candidateTimeOptions(dateInput.value, oldTime);
 
-      if (input.dataset.greenCandidateConstraintBound !== "1") {
-        input.dataset.greenCandidateConstraintBound = "1";
+    if (oldTime && timeSelect.value !== oldTime) {
+      timeSelect.value = "";
+    }
+    syncCandidateNative(input, dateInput, timeSelect);
+  }
 
-        input.addEventListener("focus", () => applyCandidateConstraint(input));
-        input.addEventListener("pointerdown", () => applyCandidateConstraint(input));
-        input.addEventListener("change", () => {
-          applyCandidateConstraint(input);
-          const wrapper = input.closest(".green-clean-date-wrap");
-          const display = wrapper?.querySelector(".green-clean-date-display");
-          if (!display) return;
+  function installCandidateSlot(input) {
+    if (!input) return;
+    if (input.dataset.greenCandidateSlot === CANDIDATE_SLOT_VERSION) {
+      refreshCandidateTimeOptions(input);
+      return;
+    }
 
-          if (!isValidFutureCandidate(input.value)) {
-            input.value = "";
-            display.value = "";
-            display.setCustomValidity("現地確認候補は、現在より後の30分単位で選択してください。");
-            display.reportValidity();
-          } else {
-            display.setCustomValidity("");
-          }
-        });
-      }
+    ensureCandidateSlotStyles();
+
+    const currentValue = String(input.value || "");
+    const initialDate = currentValue.slice(0, 10);
+    const initialTime = currentValue.slice(11, 16);
+
+    const wrapper = document.createElement("span");
+    wrapper.className = "green-candidate-slot";
+    wrapper.dataset.greenCandidateSlot = CANDIDATE_SLOT_VERSION;
+
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.className = "green-candidate-date";
+    dateInput.setAttribute("aria-label", "現地確認希望日");
+    dateInput.value = initialDate;
+
+    const timeSelect = document.createElement("select");
+    timeSelect.className = "green-candidate-time";
+    timeSelect.setAttribute("aria-label", "現地確認希望時刻");
+
+    input.dataset.greenCandidateSlot = CANDIDATE_SLOT_VERSION;
+    input.classList.add("green-candidate-native");
+    input.min = nextHalfHourTokyoValue();
+    input.step = "1800";
+
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.append(dateInput, timeSelect, input);
+
+    refreshCandidateTimeOptions(input);
+    if (initialTime) {
+      timeSelect.value = initialTime;
+      syncCandidateNative(input, dateInput, timeSelect);
+    }
+
+    dateInput.addEventListener("focus", () => refreshCandidateTimeOptions(input));
+    dateInput.addEventListener("pointerdown", () => refreshCandidateTimeOptions(input));
+    dateInput.addEventListener("change", () => {
+      refreshCandidateTimeOptions(input);
+      syncCandidateNative(input, dateInput, timeSelect, { report: true });
     });
+
+    timeSelect.addEventListener("focus", () => refreshCandidateTimeOptions(input));
+    timeSelect.addEventListener("change", () => {
+      syncCandidateNative(input, dateInput, timeSelect, { report: true });
+    });
+  }
+
+  function installPublicCandidateSlots() {
+    ["candidate1", "candidate2", "candidate3"].forEach((name) => {
+      installCandidateSlot(form?.elements?.[name] || null);
+    });
+  }
+
+  function validateCandidateSlots({ report = false } = {}) {
+    let valid = true;
+    ["candidate1", "candidate2", "candidate3"].forEach((name) => {
+      const input = form?.elements?.[name] || null;
+      const widget = input?.closest(".green-candidate-slot");
+      const dateInput = widget?.querySelector(".green-candidate-date");
+      const timeSelect = widget?.querySelector(".green-candidate-time");
+      if (!input || !dateInput || !timeSelect) return;
+      if (!syncCandidateNative(input, dateInput, timeSelect, { report })) valid = false;
+    });
+    return valid;
   }
 
   function escapeHtml(value) {
@@ -179,7 +237,7 @@
   async function initialize() {
     bindEvents();
     prefillTracking();
-    installPublicCandidateCleanDates();
+    installPublicCandidateSlots();
     try {
       const [facilityResponse, servicesResponse] = await Promise.all([
         api("/api/public/facility"), api("/api/public/services"),
@@ -252,6 +310,10 @@
     const category = String(data.get("inquiryCategory") || "");
     if (category === "photo_consultation" && !selectedFiles.length) throw new Error("写真で相談する場合は、写真を1枚以上選択してください。");
 
+    if (!validateCandidateSlots({ report: true })) {
+      throw new Error("現地確認候補は、日付と30分単位の時刻を正しく選択してください。");
+    }
+
     const candidateValues = [data.get("candidate1"), data.get("candidate2"), data.get("candidate3")]
       .filter(Boolean)
       .map(String);
@@ -316,8 +378,8 @@
     completion.hidden = true;
     form.hidden = false;
     prefillTracking();
-    installPublicCandidateCleanDates();
-    ["candidate1","candidate2","candidate3"].forEach((name) => syncCleanDateField(form.elements[name]));
+    installPublicCandidateSlots();
+    ["candidate1","candidate2","candidate3"].forEach((name) => refreshCandidateTimeOptions(form.elements[name]));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
