@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-PUBLIC-CANDIDATE-R1.3-20260916";
+  const VERSION = "GREEN-PUBLIC-CANDIDATE-R1.4-20260916";
   const { api, uploadPhoto, compressImage, uuid, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
   const form = document.querySelector("#inquiry-form");
@@ -80,14 +80,22 @@
     if (!value) return true;
     const candidate = String(value);
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:(?:00|30)$/.test(candidate)) return false;
+
+    const time = candidate.slice(11, 16);
+    const allowed =
+      (time >= "09:00" && time <= "18:30") ||
+      time === "19:00";
+    if (!allowed) return false;
+
     return candidate >= nextHalfHourTokyoValue();
   }
 
   function candidateTimeOptions(dateValue, selected = "") {
     const minimum = nextHalfHourTokyoValue();
     const options = ['<option value="">時刻を選択</option>'];
-    for (let hour = 0; hour < 24; hour += 1) {
-      for (const minute of [0, 30]) {
+    for (let hour = 9; hour <= 19; hour += 1) {
+      const minutes = hour === 19 ? [0] : [0, 30];
+      for (const minute of minutes) {
         const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
         const combined = dateValue ? `${dateValue}T${time}` : "";
         const disabled = Boolean(dateValue && combined < minimum);
@@ -121,7 +129,7 @@
     const combined = `${dateValue}T${timeValue}`;
     if (!isValidFutureCandidate(combined)) {
       input.value = "";
-      timeSelect.setCustomValidity("現在より後の30分枠を選択してください。");
+      timeSelect.setCustomValidity("現地確認候補は9:00〜19:00の30分単位で、現在より後の時刻を選択してください。");
       if (report) timeSelect.reportValidity();
       return false;
     }
@@ -311,14 +319,14 @@
     if (category === "photo_consultation" && !selectedFiles.length) throw new Error("写真で相談する場合は、写真を1枚以上選択してください。");
 
     if (!validateCandidateSlots({ report: true })) {
-      throw new Error("現地確認候補は、日付と30分単位の時刻を正しく選択してください。");
+      throw new Error("現地確認候補は、9:00〜19:00の30分単位で正しく選択してください。");
     }
 
     const candidateValues = [data.get("candidate1"), data.get("candidate2"), data.get("candidate3")]
       .filter(Boolean)
       .map(String);
     if (candidateValues.some((value) => !isValidFutureCandidate(value))) {
-      throw new Error("現地確認候補は、現在より後の30分単位で選択してください。");
+      throw new Error("現地確認候補は、9:00〜19:00の30分単位で現在より後の時刻を選択してください。");
     }
 
     return {
