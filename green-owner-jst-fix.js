@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.2-20260915";
-  const REPLACEMENT_CANDIDATE_FIX_VERSION = "GREEN-REPLACEMENT-CANDIDATE-FIX-R1.0-20260915";
+  const VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.3-20260916";
+  const REPLACEMENT_CANDIDATE_FIX_VERSION = "GREEN-REPLACEMENT-CANDIDATE-FIX-R1.1-20260916";
   if (!/\/owner\.html$/.test(location.pathname)) return;
   if (typeof window.fetch !== "function") return;
 
