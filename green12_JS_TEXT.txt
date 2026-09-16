@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN12-ANNOUNCEMENT-JST-R1.1-20260916";
+  const VERSION = "GREEN12-ANNOUNCEMENT-JST-R1.2-20260916";
   const Green = window.Green;
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
@@ -11,7 +11,7 @@
   let announcements = [];
 
 
-  const CLEAN_DATE_DISPLAY_VERSION = "GREEN-CLEAN-DATETIME-R1.2-20260916";
+  const CLEAN_DATE_DISPLAY_VERSION = "GREEN-CLEAN-DATETIME-R1.3-20260916";
 
   function ensureCleanDateStyles() {
     if (document.querySelector(`style[data-green-clean-datetime="${CLEAN_DATE_DISPLAY_VERSION}"]`)) return;
@@ -30,14 +30,14 @@
   function cleanDateDisplayValue(value) {
     const text = String(value || "");
     if (!text) return "";
-    const match = text.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})/);
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     return match ? `${match[1]}/${match[2]}/${match[3]} ${match[4]}:${match[5]}` : text;
   }
 
   function parseCleanDateDisplay(value) {
     const text = String(value || "").trim();
     if (!text) return "";
-    const match = text.match(/^(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2})[ T](\\d{1,2}):(\\d{2})$/);
+    const match = text.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ T](\d{1,2}):(\d{2})$/);
     if (!match) return null;
     return `${match[1]}-${String(match[2]).padStart(2,"0")}-${String(match[3]).padStart(2,"0")}T${String(match[4]).padStart(2,"0")}:${match[5]}`;
   }
