@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.0-20260916";
+  const VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.1-20260916";
   if (!/\/owner\.html$/.test(location.pathname)) return;
   if (!window.Green || typeof window.Green.api !== "function") return;
   if (window.Green.api.__greenAnnouncementJstFix === VERSION) return;
@@ -76,6 +76,12 @@
     setTimeout(syncAnnouncementPeriods, 0);
   }
 
+  async function refreshAnnouncements() {
+    const payload = await originalApi('/api/admin/announcements');
+    captureAnnouncements(payload);
+    return payload;
+  }
+
   async function patchedApi(path, options = {}) {
     const method = String(options?.method || "GET").toUpperCase();
     let nextOptions = options;
@@ -127,7 +133,12 @@
     const editButton = event.target.closest?.("[data-edit-announcement]");
     if (editButton) {
       const id = editButton.dataset.editAnnouncement || "";
-      setTimeout(() => syncAnnouncementEditor(id), 0);
+      setTimeout(async () => {
+        if (!announcementMap.has(String(id))) {
+          try { await refreshAnnouncements(); } catch {}
+        }
+        syncAnnouncementEditor(id);
+      }, 0);
       return;
     }
 
@@ -156,5 +167,6 @@
     observer.observe(list, { childList: true, subtree: true });
   }
 
+  refreshAnnouncements().catch(() => {});
   console.info(`[DPRO GREEN] ${VERSION} active`);
 })();
