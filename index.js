@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-PUBLIC-ANNOUNCEMENT-R1.1-20260916";
+  const VERSION = "GREEN-PUBLIC-CANDIDATE-R1.2-20260916";
   const { api, uploadPhoto, compressImage, uuid, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
   const form = document.querySelector("#inquiry-form");
@@ -86,8 +86,84 @@
     // The real datetime-local input overlays the calendar cell, so the browser receives a genuine user click.
   }
 
+  function tokyoNowParts(date = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+    return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  }
+
+  function nextHalfHourTokyoValue() {
+    const now = new Date();
+    const p = tokyoNowParts(now);
+    const base = new Date(Date.UTC(
+      Number(p.year),
+      Number(p.month) - 1,
+      Number(p.day),
+      Number(p.hour),
+      0,
+      0
+    ));
+
+    const minute = Number(p.minute);
+    let rounded = minute < 30 ? 30 : 60;
+    if ((minute === 0 || minute === 30) && now.getSeconds() === 0 && now.getMilliseconds() === 0) {
+      rounded = minute;
+    }
+    base.setUTCMinutes(rounded);
+
+    return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, "0")}-${String(base.getUTCDate()).padStart(2, "0")}T${String(base.getUTCHours()).padStart(2, "0")}:${String(base.getUTCMinutes()).padStart(2, "0")}`;
+  }
+
+  function isValidFutureCandidate(value) {
+    if (!value) return true;
+    const text = String(value);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:(?:00|30)$/.test(text)) return false;
+    return text >= nextHalfHourTokyoValue();
+  }
+
+  function applyCandidateConstraint(input) {
+    if (!input) return;
+    input.min = nextHalfHourTokyoValue();
+    input.step = "1800";
+  }
+
   function installPublicCandidateCleanDates() {
-    ["candidate1","candidate2","candidate3"].forEach((name) => installCleanDateField(form?.elements?.[name] || null));
+    ["candidate1","candidate2","candidate3"].forEach((name) => {
+      const input = form?.elements?.[name] || null;
+      if (!input) return;
+
+      applyCandidateConstraint(input);
+      installCleanDateField(input);
+
+      if (input.dataset.greenCandidateConstraintBound !== "1") {
+        input.dataset.greenCandidateConstraintBound = "1";
+
+        input.addEventListener("focus", () => applyCandidateConstraint(input));
+        input.addEventListener("pointerdown", () => applyCandidateConstraint(input));
+        input.addEventListener("change", () => {
+          applyCandidateConstraint(input);
+          const wrapper = input.closest(".green-clean-date-wrap");
+          const display = wrapper?.querySelector(".green-clean-date-display");
+          if (!display) return;
+
+          if (!isValidFutureCandidate(input.value)) {
+            input.value = "";
+            display.value = "";
+            display.setCustomValidity("現地確認候補は、現在より後の30分単位で選択してください。");
+            display.reportValidity();
+          } else {
+            display.setCustomValidity("");
+          }
+        });
+      }
+    });
   }
 
   function escapeHtml(value) {
@@ -175,6 +251,14 @@
     const data = new FormData(form);
     const category = String(data.get("inquiryCategory") || "");
     if (category === "photo_consultation" && !selectedFiles.length) throw new Error("写真で相談する場合は、写真を1枚以上選択してください。");
+
+    const candidateValues = [data.get("candidate1"), data.get("candidate2"), data.get("candidate3")]
+      .filter(Boolean)
+      .map(String);
+    if (candidateValues.some((value) => !isValidFutureCandidate(value))) {
+      throw new Error("現地確認候補は、現在より後の30分単位で選択してください。");
+    }
+
     return {
       facilityCode: config.FACILITY_CODE,
       source: document.body.dataset.source || "website",
@@ -189,7 +273,7 @@
       desiredCount: data.get("desiredCount") || null,
       desiredSize: data.get("desiredSize"),
       desiredStartPeriod: data.get("desiredStartPeriod"),
-      siteCheckCandidates: [data.get("candidate1"), data.get("candidate2"), data.get("candidate3")].filter(Boolean),
+      siteCheckCandidates: candidateValues,
       preferredContactMethod: data.get("preferredContactMethod"),
       inquiryText: data.get("inquiryText"),
       consent: data.get("consent") === "on",
