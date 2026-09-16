@@ -37,6 +37,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R2.9-20260915";
   const OWNER_JST_FIX_VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.4-20260916";
   const ANNOUNCEMENT_JST_FIX_VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.2-20260916";
+  const LINE_ACCESS_VERSION = "GREEN-LINE-ACCESS-R1-20260916";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -207,6 +208,21 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+  function installLineAccess() {
+    const isOwner = /\/owner\.html$/.test(location.pathname);
+    const isMember = /\/member\.html$/.test(location.pathname);
+    if (!isOwner && !isMember) return;
+    const key = isOwner ? "greenLineAccessOwner" : "greenLineAccessMember";
+    if (document.querySelector(`script[data-${isOwner ? "green-line-access-owner" : "green-line-access-member"}]`)) return;
+    const script = document.createElement("script");
+    script.src = `${isOwner ? "green-line-access-owner.js" : "green-line-access-member.js"}?v=${encodeURIComponent(LINE_ACCESS_VERSION)}`;
+    script.defer = true;
+    if (isOwner) script.dataset.greenLineAccessOwner = LINE_ACCESS_VERSION;
+    else script.dataset.greenLineAccessMember = LINE_ACCESS_VERSION;
+    document.head.append(script);
+    document.documentElement.dataset[key] = LINE_ACCESS_VERSION;
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
@@ -216,6 +232,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installOwnerUxFix();
     installOwnerJstDatetimeFix();
     installAnnouncementJstFix();
+    installLineAccess();
     installContactFlowCopy();
   }
 
