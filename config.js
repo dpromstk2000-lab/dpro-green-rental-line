@@ -41,6 +41,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const BRUSHUP_VERSION = "GREEN-BRUSHUP-R30-20260916";
   const STAFF_MANAGEMENT_VERSION = "GREEN-STAFF-MANAGEMENT-R31.1-20260917";
   const INSTALLATION_UI_VERSION = "GREEN-INSTALLATION-UI-R32-20260917";
+  const CARE_OVERDUE_VERSION = "GREEN-CARE-OVERDUE-R33-20260917";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -259,6 +260,17 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+
+  function installCareOverdueR33() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (document.querySelector('script[data-green-care-overdue-r33]')) return;
+    const script = document.createElement("script");
+    script.src = `green-care-overdue-r33.js?v=${encodeURIComponent(CARE_OVERDUE_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenCareOverdueR33 = CARE_OVERDUE_VERSION;
+    document.head.append(script);
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
@@ -272,6 +284,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installBrushupR30();
     installStaffManagementR31();
     installInstallationUiR32();
+    installCareOverdueR33();
     installContactFlowCopy();
   }
 
