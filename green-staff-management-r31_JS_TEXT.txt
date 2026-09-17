@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-STAFF-MANAGEMENT-R31-20260917";
+  const VERSION = "GREEN-STAFF-MANAGEMENT-R31.1-20260917";
   const Green = window.Green;
   const API = "/api/admin/staff";
   const ROLE_LABELS = {
@@ -77,8 +77,8 @@
       .green-staff-grid input,.green-staff-grid select{min-height:46px;padding:9px 11px;border:1px solid #c8d9d0;border-radius:10px;font:inherit;background:#fff}
       .green-staff-role-box{grid-column:1/-1;border:1px solid #dbe7e1;border-radius:12px;padding:14px}
       .green-staff-role-box>strong{display:block;margin-bottom:10px}.green-staff-role-checks{display:flex;gap:10px 16px;flex-wrap:wrap}
-      .green-staff-role-checks label{display:flex;align-items:center;gap:6px;font-weight:700}.green-staff-role-checks input{min-height:auto}
-      .green-staff-check{display:flex!important;align-items:center;gap:8px!important}.green-staff-check input{min-height:auto}
+      .green-staff-role-checks label{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}.green-staff-role-checks input{min-height:auto;flex:0 0 auto}
+      .green-staff-check{display:flex!important;align-items:center;gap:8px!important;white-space:nowrap}.green-staff-check input{min-height:auto;flex:0 0 auto}
       .green-staff-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
       .green-staff-error{margin:12px 0 0;color:#9a3d2c;font-weight:700}
       .green-staff-management-link{position:relative}
@@ -241,12 +241,43 @@
       document.getElementById("green-staff-r31-form").close();
       if (Green.toast) Green.toast(selectedId ? "スタッフ情報を更新しました。" : "スタッフを登録しました。", "success");
       await loadStaff();
+      syncVisitStaffFilter(items);
     } catch (error) {
       errorBox.textContent = error.message || "保存できませんでした。";
       errorBox.hidden = false;
     } finally {
       submit.disabled = false;
       submit.textContent = selectedId ? "更新" : "登録";
+    }
+  }
+
+  function activeStaffOptions(list, selected = "") {
+    return '<option value="">担当者を選択</option>' + (list || []).filter((item) => item.status === "active").map((item) => `<option value="${esc(item.id)}"${item.id === selected ? " selected" : ""}>${esc(item.display_name)}（${esc(item.staff_code)}）</option>`).join("");
+  }
+
+  function syncVisitStaffFilter(list) {
+    const filter = document.getElementById("visit-staff");
+    if (!filter) return;
+    const selected = filter.value;
+    const active = (list || []).filter((item) => item.status === "active");
+    filter.innerHTML = '<option value="">すべて</option>' + active.map((item) => `<option value="${esc(item.id)}">${esc(item.display_name)}（${esc(item.staff_code)}）</option>`).join("");
+    if (active.some((item) => item.id === selected)) filter.value = selected;
+  }
+
+  async function refreshAssignmentStaffSelector() {
+    const select = document.querySelector('#visit-assign-form select[name="staffId"]');
+    if (!select || select.dataset.greenStaffR311 === VERSION || select.dataset.greenStaffR311 === "loading") return;
+    select.dataset.greenStaffR311 = "loading";
+    try {
+      const selected = select.value;
+      const response = await Green.api(API);
+      const fresh = response.data?.items || [];
+      const stillActive = fresh.some((item) => item.id === selected && item.status === "active");
+      select.innerHTML = activeStaffOptions(fresh, stillActive ? selected : "");
+      syncVisitStaffFilter(fresh);
+      select.dataset.greenStaffR311 = VERSION;
+    } catch (error) {
+      delete select.dataset.greenStaffR311;
     }
   }
 
@@ -279,8 +310,10 @@
     const observer = new MutationObserver(() => {
       installEntryPoints();
       polishInstallationDialog();
+      refreshAssignmentStaffSelector();
     });
     observer.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ["open", "hidden"] });
+    refreshAssignmentStaffSelector();
     document.documentElement.dataset.greenStaffManagement = VERSION;
   }
 
