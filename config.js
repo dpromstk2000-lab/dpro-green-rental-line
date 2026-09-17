@@ -39,6 +39,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const ANNOUNCEMENT_JST_FIX_VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.2-20260916";
   const LINE_ACCESS_VERSION = "GREEN-LINE-ACCESS-R1-20260916";
   const BRUSHUP_VERSION = "GREEN-BRUSHUP-R30-20260916";
+  const STAFF_MANAGEMENT_VERSION = "GREEN-STAFF-MANAGEMENT-R31-20260917";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -236,6 +237,16 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+  function installStaffManagementR31() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (document.querySelector('script[data-green-staff-management-r31]')) return;
+    const script = document.createElement("script");
+    script.src = `green-staff-management-r31.js?v=${encodeURIComponent(STAFF_MANAGEMENT_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenStaffManagementR31 = STAFF_MANAGEMENT_VERSION;
+    document.head.append(script);
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
@@ -247,6 +258,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installAnnouncementJstFix();
     installLineAccess();
     installBrushupR30();
+    installStaffManagementR31();
     installContactFlowCopy();
   }
 
