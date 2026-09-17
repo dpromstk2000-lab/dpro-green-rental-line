@@ -40,6 +40,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   const LINE_ACCESS_VERSION = "GREEN-LINE-ACCESS-R1-20260916";
   const BRUSHUP_VERSION = "GREEN-BRUSHUP-R30-20260916";
   const STAFF_MANAGEMENT_VERSION = "GREEN-STAFF-MANAGEMENT-R31.1-20260917";
+  const INSTALLATION_UI_VERSION = "GREEN-INSTALLATION-UI-R32-20260917";
 
   function installContactMenu() {
     if (!window.GREEN_CONFIG?.CONTACT_ENABLED) return;
@@ -247,6 +248,17 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     document.head.append(script);
   }
 
+
+  function installInstallationUiR32() {
+    if (!/\/owner\.html$/.test(location.pathname)) return;
+    if (document.querySelector('script[data-green-installation-ui-r32]')) return;
+    const script = document.createElement("script");
+    script.src = `green-installation-ui-r32.js?v=${encodeURIComponent(INSTALLATION_UI_VERSION)}`;
+    script.defer = true;
+    script.dataset.greenInstallationUiR32 = INSTALLATION_UI_VERSION;
+    document.head.append(script);
+  }
+
   function boot() {
     installContactMenu();
     installCustomerHeroAdmin();
@@ -259,6 +271,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
     installLineAccess();
     installBrushupR30();
     installStaffManagementR31();
+    installInstallationUiR32();
     installContactFlowCopy();
   }
 
