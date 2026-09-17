@@ -51,6 +51,8 @@
     try {
       const response = await window.Green.api("/api/member/overview");
       const items = response?.data?.activeIssues || [];
+      const issueCount = document.querySelector("#issue-count");
+      if (issueCount) issueCount.textContent = String(items.length);
 
       if (!items.length) {
         region.innerHTML = '<div class="section-heading"><div><p class="eyebrow">YOUR INQUIRIES</p><h2>送信済み・対応中のご相談</h2></div></div><div class="empty-state"><span aria-hidden="true">🌱</span><p>現在対応中のご相談はありません。</p></div>';
