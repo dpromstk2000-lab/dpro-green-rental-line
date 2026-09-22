@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.2 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.3 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.2-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.3-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -319,7 +319,8 @@
       const inquiry = $("#inquiry-update-form", dialog);
       const lead = $("#lead-update-form", dialog);
       const site = $("#green-site-detail-form", dialog) || $("#site-check-form", dialog);
-      if (!inquiry && !lead && !site) {
+      const customer = $("#customer-form", dialog);
+      if (!inquiry && !lead && !site && !customer) {
         state.mainForm = null;
         state.trackedForms = [];
         state.dirtyAny = false;
