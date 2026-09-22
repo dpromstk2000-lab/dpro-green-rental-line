@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9.1 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9.2 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9.1-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9.2-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -454,7 +454,7 @@
     `;
 
     footer.innerHTML = `
-      <button type="button" class="btn btn--secondary" data-dialog-close>取消</button>
+      <button type="button" class="btn btn--secondary" id="green-site-area-cancel" data-dialog-close>取消</button>
       <button type="button" class="btn btn--primary" id="green-site-area-save">更新</button>
     `;
 
@@ -951,6 +951,16 @@
         event.stopImmediatePropagation();
       }
     }
+  }, true);
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("button");
+    if (!button || button.id !== "green-site-area-cancel" || !dialog.contains(button)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    state.dirtyAny = false;
+    state.dirtyMain = false;
+    dialog.close();
   }, true);
 
   dialog.addEventListener("cancel", (event) => {
