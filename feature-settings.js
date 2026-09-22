@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const Green=window.Green, $=s=>document.querySelector(s);
-  const state={data:null,original:{}};
+  const state={data:null,original:{},selectedGroup:"",saveStatus:"saved"};
   const labels={
     use_multi_site:"複数拠点",use_site_areas:"拠点内設置場所",use_customer_portal:"お客様マイページ",use_customer_line_link:"LINE顧客連携",use_customer_contract_view:"利用内容表示",
     plant_management_mode:"植物管理方式",use_plant_qr:"植物QR",use_headquarters_asset_code:"本部管理番号",container_management_mode:"鉢管理方式",use_simple_inventory:"簡易在庫",use_asset_movement_history:"資産移動履歴",use_plant_photo_history:"植物写真履歴",
@@ -12,33 +12,183 @@
   };
   const optionLabels={asset:"一鉢管理",count:"本数管理",hybrid:"併用管理",none:"使用しない",with_plant:"植物と一体",separate_asset:"別資産",off:"OFF",optional:"任意",required:"必須",manager:"管理者",owner:"オーナー",copy:"文面コピー",automatic:"自動送信",assigned_only:"担当分のみ",today_route:"本日のルート",all_active:"利用中顧客すべて"};
   const esc=v=>String(v??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  function currentChanges(){
+    const changes={};
+    document.querySelectorAll("[data-feature-input]").forEach(el=>{
+      const k=el.dataset.featureInput;
+      const v=el.type==="checkbox"?el.checked:el.value;
+      if(String(v)!==String(state.original[k]))changes[k]=v;
+    });
+    return changes;
+  }
+
+  function ensureFeatureSaveState(){
+    const button=$("#feature-save-all");
+    if(!button)return null;
+    let node=$("#feature-save-state");
+    if(!node){
+      node=document.createElement("span");
+      node.id="feature-save-state";
+      node.className="feature-save-state";
+      node.setAttribute("aria-live","polite");
+      button.before(node);
+    }
+    return node;
+  }
+
+  function setFeatureSaveState(status,message){
+    state.saveStatus=status;
+    const node=ensureFeatureSaveState();
+    const button=$("#feature-save-all");
+    if(node){
+      node.dataset.status=status;
+      node.textContent=message;
+    }
+    if(button){
+      button.disabled=status==="saving"||status==="saved";
+      button.textContent=status==="saving"?"保存中…":"変更を保存";
+    }
+  }
+
+  function syncFeatureDirtyState(){
+    if(state.saveStatus==="saving")return;
+    const count=Object.keys(currentChanges()).length;
+    setFeatureSaveState(
+      count?"dirty":"saved",
+      count?`未保存の変更があります（${count}件）。`:"✓ 現在の設定は保存済みです。"
+    );
+  }
+
+  function selectFeatureGroup(group){
+    state.selectedGroup=group;
+    document.querySelectorAll("[data-feature-group]").forEach(panel=>{
+      panel.hidden=panel.dataset.featureGroup!==group;
+    });
+    document.querySelectorAll("[data-feature-category]").forEach(button=>{
+      const active=button.dataset.featureCategory===group;
+      button.classList.toggle("is-active",active);
+      button.setAttribute("aria-current",active?"true":"false");
+    });
+    const select=$("#feature-category-select");
+    if(select&&select.value!==group)select.value=group;
+  }
+
+  function ensureFeatureGroupIndex(groupNames){
+    const host=$("#feature-groups");
+    if(!host)return;
+
+    let shell=document.querySelector(".feature-settings-shell");
+    if(!shell){
+      shell=document.createElement("div");
+      shell.className="feature-settings-shell";
+      host.parentNode.insertBefore(shell,host);
+
+      const aside=document.createElement("aside");
+      aside.className="feature-settings-index";
+      aside.innerHTML=`
+        <div class="feature-settings-index-title">設定カテゴリ</div>
+        <label class="feature-category-mobile">カテゴリを選択
+          <select id="feature-category-select"></select>
+        </label>
+        <nav id="feature-category-nav" aria-label="機能設定カテゴリ"></nav>
+      `;
+      shell.append(aside,host);
+    }
+
+    const nav=$("#feature-category-nav");
+    const select=$("#feature-category-select");
+    if(nav){
+      nav.innerHTML=groupNames.map(group=>`<button type="button" data-feature-category="${esc(group)}">${esc(group)}</button>`).join("");
+      nav.querySelectorAll("[data-feature-category]").forEach(button=>{
+        button.addEventListener("click",()=>selectFeatureGroup(button.dataset.featureCategory));
+      });
+    }
+    if(select){
+      select.innerHTML=groupNames.map(group=>`<option value="${esc(group)}">${esc(group)}</option>`).join("");
+      select.onchange=()=>selectFeatureGroup(select.value);
+    }
+  }
+
   async function load(){
-    const result=await Green.api("/api/admin/features"); state.data=result.data; state.original={};
+    const result=await Green.api("/api/admin/features");
+    state.data=result.data;
+    state.original={};
     Object.entries(result.data.features||{}).forEach(([k,v])=>state.original[k]=v.value);
-    render(); await loadHistory();
+    render();
+    setFeatureSaveState("saved","✓ 現在の設定は保存済みです。");
+    await loadHistory();
   }
   function render(){
-    const groups={}; for(const [key,def] of Object.entries(state.data.definitions||{})){(groups[def.group]??=[]).push([key,def]);}
-    $("#feature-groups").innerHTML=Object.entries(groups).map(([group,items])=>`<article class="owner-panel feature-group"><div class="owner-panel-head"><h3>${esc(group)}</h3></div><div class="feature-grid">${items.map(([key,def])=>control(key,def)).join("")}</div></article>`).join("");
-    const dep=state.data.dependencyValidation; const box=$("#feature-dependency-box"); box.textContent=dep.ok?"機能の依存関係は正常です。":"依存関係エラー："+dep.errors.join(" / "); box.classList.toggle("is-error",!dep.ok);
+    const groups={};
+    for(const [key,def] of Object.entries(state.data.definitions||{})){
+      (groups[def.group]??=[]).push([key,def]);
+    }
+    const entries=Object.entries(groups);
+    const names=entries.map(([group])=>group);
+    if(!names.includes(state.selectedGroup))state.selectedGroup=names[0]||"";
+
+    $("#feature-groups").innerHTML=entries.map(([group,items])=>`<article class="owner-panel feature-group" data-feature-group="${esc(group)}"${group===state.selectedGroup?"":" hidden"}><div class="owner-panel-head"><h3>${esc(group)}</h3></div><div class="feature-grid">${items.map(([key,def])=>control(key,def)).join("")}</div></article>`).join("");
+
+    ensureFeatureGroupIndex(names);
+    if(state.selectedGroup)selectFeatureGroup(state.selectedGroup);
+
+    const dep=state.data.dependencyValidation;
+    const box=$("#feature-dependency-box");
+    box.textContent=dep.ok?"機能の依存関係は正常です。":"依存関係エラー："+dep.errors.join(" / ");
+    box.classList.toggle("is-error",!dep.ok);
   }
   function control(key,def){ const entry=state.data.features[key]||{}; const value=entry.value??def.recommended; const locked=entry.isLocked===true;
     let input; if(def.type==="boolean") input=`<label class="feature-switch"><input type="checkbox" data-feature-input="${key}" ${value===true?"checked":""} ${locked?"disabled":""}><span>${value===true?"ON":"OFF"}</span></label>`;
     else input=`<select data-feature-input="${key}" ${locked?"disabled":""}>${(def.allowed||[]).map(v=>`<option value="${esc(v)}" ${String(v)===String(value)?"selected":""}>${esc(optionLabels[v]||v)}</option>`).join("")}</select>`;
     return `<div class="feature-card"><div><strong>${esc(labels[key]||key)}</strong><code>${esc(key)}</code></div>${input}<small>推奨：${esc(optionLabels[def.recommended]??String(def.recommended))}${locked?"／ロック済み":""}</small></div>`; }
-  async function save(){ const changes={}; document.querySelectorAll("[data-feature-input]").forEach(el=>{const k=el.dataset.featureInput; const v=el.type==="checkbox"?el.checked:el.value;if(String(v)!==String(state.original[k]))changes[k]=v;}); if(!Object.keys(changes).length){Green.toast("変更はありません。");return;} if(!confirm(`${Object.keys(changes).length}件の設定を変更します。よろしいですか？`))return;
-    const result=await Green.api("/api/admin/features",{method:"PATCH",json:{changes,reason:"機能設定画面から変更"}}); Green.toast("機能設定を保存しました。","success"); state.data=result.data; state.original={}; Object.entries(result.data.features||{}).forEach(([k,v])=>state.original[k]=v.value); render(); await loadHistory(); }
+  async function save(){
+    const changes=currentChanges();
+    const count=Object.keys(changes).length;
+    if(!count){
+      Green.toast("変更はありません。");
+      setFeatureSaveState("saved","✓ 現在の設定は保存済みです。");
+      return;
+    }
+    if(!confirm(`${count}件の設定を変更します。よろしいですか？`))return;
+
+    setFeatureSaveState("saving","保存中です…");
+    try{
+      const result=await Green.api("/api/admin/features",{method:"PATCH",json:{changes,reason:"機能設定画面から変更"}});
+      state.data=result.data;
+      state.original={};
+      Object.entries(result.data.features||{}).forEach(([k,v])=>state.original[k]=v.value);
+      render();
+      await loadHistory();
+      setFeatureSaveState("saved","✓ 設定を保存しました。");
+      Green.toast("機能設定を保存しました。","success");
+    }catch(error){
+      setFeatureSaveState("error","保存に失敗しました。内容を確認して再試行してください。");
+      Green.toast(`${error.message}${error.requestId?`（確認番号：${error.requestId}）`:""}`,"error");
+    }
+  }
   async function loadHistory(){const result=await Green.api("/api/admin/features/history"); const items=result.data.items||[]; $("#feature-history").innerHTML=items.length?items.map(x=>`<div class="feature-history-item"><strong>${esc(labels[x.feature_key]||x.feature_key)}</strong><span>${esc(x.old_value??"—")} → ${esc(x.new_value??"—")}</span><small>${esc(new Date(x.created_at).toLocaleString("ja-JP"))}${x.change_reason?"／"+esc(x.change_reason):""}</small></div>`).join(""):'<div class="owner-empty">変更履歴はありません。</div>';}
-  document.addEventListener("DOMContentLoaded",()=>{$("#feature-save-all")?.addEventListener("click",save);$("#feature-history-reload")?.addEventListener("click",loadHistory);});
+  document.addEventListener("DOMContentLoaded",()=>{
+    $("#feature-save-all")?.addEventListener("click",save);
+    $("#feature-history-reload")?.addEventListener("click",loadHistory);
+    document.addEventListener("change",event=>{
+      const input=event.target.closest?.("[data-feature-input]");
+      if(!input)return;
+      if(input.type==="checkbox"){
+        const text=input.closest(".feature-switch")?.querySelector("span");
+        if(text)text.textContent=input.checked?"ON":"OFF";
+      }
+      syncFeatureDirtyState();
+    });
+  });
   window.GreenFeatureSettings={load};
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9.2 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R2.0 / 2026-09-23 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9.2-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R2.0-20260923";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -483,7 +633,9 @@
         isActive: $('[name="isActive"]', form)?.checked === true,
       };
 
+      const originalSaveText = save.textContent;
       save.disabled = true;
+      save.textContent = "更新中…";
       try {
         const result = await Green.api(
           `/api/admin/sites/${encodeURIComponent(siteId)}/areas/${encodeURIComponent(area.id)}`,
@@ -497,8 +649,16 @@
         state.dirtyMain = false;
         dialog.close();
         reopenCurrentSiteDetail(siteId);
-      } catch {
-        save.disabled = false;
+      } catch (error) {
+        Green.toast(
+          `${error.message || "設置場所を更新できませんでした。"}${error.requestId ? `（確認番号：${error.requestId}）` : ""}`,
+          "error"
+        );
+      } finally {
+        if (dialog.open) {
+          save.disabled = false;
+          save.textContent = originalSaveText;
+        }
       }
     });
 

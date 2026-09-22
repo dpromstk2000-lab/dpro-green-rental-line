@@ -171,3 +171,28 @@
 #facility-business-hours[readonly],#facility-closed-days[readonly]{background:#eef3ef;color:#42554a}
 @media(max-width:1200px){.green12-hour-row{grid-template-columns:90px 90px 1fr 1fr}.green12-hour-row label:last-child{grid-column:1/-1}.green12-site-exception-row{grid-template-columns:repeat(3,minmax(0,1fr))}.green12-site-exception-row button{min-height:42px}}
 @media(max-width:760px){.green12-hour-row,.green12-calendar-options,.green12-preview-grid,.green12-site-exception-row{grid-template-columns:1fr}.green12-hour-row label:last-child{grid-column:auto}.green12-list-item{flex-direction:column}.green12-list-actions{width:100%;justify-content:stretch}.green12-list-actions .btn{flex:1}.green12-site-exception-row button{width:100%}}
+
+
+/* DPRO GREEN EVERGREEN R2 SETTINGS UX / 2026-09-23 */
+.feature-settings-shell{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:start;margin:18px 0 22px}
+.feature-settings-index{position:sticky;top:18px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow-soft)}
+.feature-settings-index-title{margin-bottom:10px;color:var(--green-900);font-weight:900}
+#feature-category-nav{display:grid;gap:6px}
+#feature-category-nav button{min-height:44px;padding:10px 12px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--ink);text-align:left;font:inherit;font-weight:800;cursor:pointer}
+#feature-category-nav button:hover,#feature-category-nav button.is-active{border-color:var(--line);background:var(--green-100);color:var(--green-900)}
+.feature-category-mobile{display:none}
+.feature-settings-shell .feature-groups{margin:0}
+.feature-group[hidden]{display:none!important}
+.feature-save-state{margin-left:auto;padding:8px 11px;border-radius:999px;background:#edf5ef;color:var(--green-900);font-size:13px;font-weight:800}
+.feature-save-state[data-status="dirty"]{background:#fff4cf;color:#765600}
+.feature-save-state[data-status="saving"]{background:#e7f0ff;color:#214f88}
+.feature-save-state[data-status="error"]{background:#fff0f0;color:#9b1c1c}
+[data-view-panel="features"]>.owner-heading{gap:12px;flex-wrap:wrap}
+@media(max-width:800px){
+  .feature-settings-shell{grid-template-columns:1fr}
+  .feature-settings-index{position:static;padding:12px}
+  #feature-category-nav{display:none}
+  .feature-category-mobile{display:grid;gap:6px;font-weight:800}
+  .feature-category-mobile select{width:100%;min-height:46px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font:inherit}
+  .feature-save-state{order:3;width:100%;margin-left:0}
+}
