@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.1 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.1-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -104,8 +104,7 @@
     for (const control of controls) {
       if (!control.name || control.disabled) continue;
       if (control.type === "file") {
-        const file = control.files?.[0];
-        entries.push([control.name, file ? `${file.name}:${file.size}:${file.type}` : ""]);
+        continue;
       } else if (control.type === "checkbox" || control.type === "radio") {
         entries.push([control.name, control.checked ? "1" : "0", control.value || ""]);
       } else {
@@ -171,6 +170,7 @@
   function mainFormForDialog() {
     return $("#inquiry-update-form", dialog) ||
       $("#lead-update-form", dialog) ||
+      $("#green-site-detail-form", dialog) ||
       $("#site-check-form", dialog) ||
       null;
   }
@@ -185,7 +185,7 @@
       if (activity) forms.push(activity);
     }
 
-    if ($("#site-check-form", dialog)) {
+    if ($("#site-check-form", dialog) || $("#green-site-detail-form", dialog)) {
       $$("form", dialog).forEach((form) => {
         if (!forms.includes(form) && form.querySelector('input[type="file"]')) forms.push(form);
       });
@@ -223,8 +223,10 @@
       addActivity.title = mainDirty ? "案件の変更を先に保存してください。" : "";
     }
 
-    if ($("#site-check-form", dialog)) {
-      $$("button", dialog).filter((button) => /写真を追加/.test(button.textContent || "")).forEach((button) => {
+    if ($("#site-check-form", dialog) || $("#green-site-detail-form", dialog)) {
+      const photoButton = $("#green-site-photo-upload", dialog);
+      const photoButtons = photoButton ? [photoButton] : $$("button", dialog).filter((button) => /写真を追加/.test(button.textContent || ""));
+      photoButtons.forEach((button) => {
         button.disabled = mainDirty;
         button.title = mainDirty ? "現地確認の変更を先に保存してください。" : "";
       });
@@ -247,7 +249,7 @@
   }
 
   function decorateFileInputs() {
-    if (!$("#site-check-form", dialog)) return;
+    if (!$("#site-check-form", dialog) && !$("#green-site-detail-form", dialog)) return;
     $$('input[type="file"]', dialog).forEach((input) => {
       if (input.dataset.greenEvergreenFile === VERSION) return;
       input.dataset.greenEvergreenFile = VERSION;
@@ -303,6 +305,7 @@
     if (button.id === "save-inquiry") return $("#inquiry-update-form", dialog)?.reportValidity() ?? true;
     if (button.id === "save-lead") return $("#lead-update-form", dialog)?.reportValidity() ?? true;
     if (button.id === "save-site-check") return validateSiteCheck($("#site-check-form", dialog));
+    if (button.id === "green-site-detail-save") return validateSiteCheck($("#green-site-detail-form", dialog));
     if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
     return true;
   }
@@ -313,7 +316,7 @@
     try {
       const inquiry = $("#inquiry-update-form", dialog);
       const lead = $("#lead-update-form", dialog);
-      const site = $("#site-check-form", dialog);
+      const site = $("#green-site-detail-form", dialog) || $("#site-check-form", dialog);
       if (!inquiry && !lead && !site) {
         state.mainForm = null;
         state.trackedForms = [];
@@ -366,7 +369,7 @@
     const button = event.target.closest("button");
     if (!button || !dialog.contains(button)) return;
 
-    if (["save-inquiry","save-lead","save-site-check","add-lead-activity"].includes(button.id)) {
+    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","add-lead-activity"].includes(button.id)) {
       if (!validateButton(button)) {
         event.preventDefault();
         event.stopImmediatePropagation();
