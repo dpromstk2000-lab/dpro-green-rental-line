@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.3 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.4 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.3-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.4-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -114,8 +114,66 @@
     return JSON.stringify(entries);
   }
 
+  function formDefaultSnapshot(form) {
+    if (!form) return "";
+    const entries = [];
+    const controls = $$("input,select,textarea", form);
+    for (const control of controls) {
+      if (!control.name || control.disabled) continue;
+      if (control.type === "file") continue;
+
+      if (control.tagName === "SELECT") {
+        const defaults = Array.from(control.options)
+          .filter((option) => option.defaultSelected)
+          .map((option) => option.value);
+        // Generated edit forms normally mark the current option as selected.
+        // If none is explicitly marked, use the browser's initial selected index.
+        if (!defaults.length && control.options.length) {
+          const explicitIndex = Array.from(control.options).findIndex((option) => option.defaultSelected);
+          const index = explicitIndex >= 0 ? explicitIndex : control.selectedIndex;
+          entries.push([control.name, index >= 0 ? control.options[index].value : ""]);
+        } else {
+          entries.push([control.name, defaults.join("|")]);
+        }
+      } else if (control.type === "checkbox" || control.type === "radio") {
+        entries.push([control.name, control.defaultChecked ? "1" : "0", control.value || ""]);
+      } else if (control.tagName === "TEXTAREA") {
+        entries.push([control.name, control.defaultValue ?? ""]);
+      } else {
+        entries.push([control.name, control.defaultValue ?? ""]);
+      }
+    }
+    return JSON.stringify(entries);
+  }
+
+  function supportedForm(form) {
+    if (!form) return false;
+    return [
+      "inquiry-update-form",
+      "lead-update-form",
+      "site-check-form",
+      "green-site-detail-form",
+      "customer-form",
+      "lead-activity-form",
+    ].includes(form.id);
+  }
+
+  function currentTrackedForms() {
+    return $$("form", dialog).filter(supportedForm);
+  }
+
+  function computeDirtyState() {
+    const forms = currentTrackedForms();
+    const main = mainFormForDialog();
+    const dirtyAny = forms.some((form) => formSnapshot(form) !== formDefaultSnapshot(form));
+    const dirtyMain = main
+      ? formSnapshot(main) !== formDefaultSnapshot(main)
+      : false;
+    return { forms, main, dirtyAny, dirtyMain };
+  }
+
   function allSnapshot() {
-    return JSON.stringify(state.trackedForms.map((form) => [form.id || "", formSnapshot(form)]));
+    return JSON.stringify(currentTrackedForms().map((form) => [form.id || "", formSnapshot(form)]));
   }
 
   function setDependent(control, visible) {
@@ -235,9 +293,13 @@
   }
 
   function refreshDirty() {
-    if (!state.mainForm || !dialog.open) return;
-    state.dirtyMain = formSnapshot(state.mainForm) !== state.baselineMain;
-    state.dirtyAny = allSnapshot() !== state.baselineAll;
+    if (!dialog.open) return;
+
+    const computed = computeDirtyState();
+    state.mainForm = computed.main;
+    state.trackedForms = computed.forms;
+    state.dirtyAny = computed.dirtyAny;
+    state.dirtyMain = computed.dirtyMain;
 
     const node = ensureSaveState();
     if (node) {
@@ -334,10 +396,7 @@
       decorateFileInputs();
 
       const nextMain = mainFormForDialog();
-      const nextTracked = trackedFormsForDialog();
-      const formChanged = nextMain !== state.mainForm ||
-        nextTracked.length !== state.trackedForms.length ||
-        nextTracked.some((form, index) => form !== state.trackedForms[index]);
+      const nextTracked = currentTrackedForms();
 
       state.mainForm = nextMain;
       state.trackedForms = nextTracked;
@@ -356,17 +415,27 @@
         form.addEventListener("change", listener);
       });
 
-      if (formChanged || !state.baselineAll) {
-        state.baselineMain = formSnapshot(state.mainForm);
-        state.baselineAll = allSnapshot();
-        state.dirtyAny = false;
-        state.dirtyMain = false;
-      }
       refreshDirty();
     } finally {
       state.enhancing = false;
     }
   }
+
+  dialog.addEventListener("input", (event) => {
+    const form = event.target?.closest?.("form");
+    if (!supportedForm(form)) return;
+    queueMicrotask(refreshDirty);
+  }, true);
+
+  dialog.addEventListener("change", (event) => {
+    const form = event.target?.closest?.("form");
+    if (!supportedForm(form)) return;
+    if (event.target?.name === "status") {
+      syncSalesDependencies(form);
+      syncSiteCheckDependencies(form);
+    }
+    queueMicrotask(refreshDirty);
+  }, true);
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("button");
@@ -384,7 +453,10 @@
       button.id === "dialog-cancel" ||
       button.hasAttribute("data-dialog-close");
 
-    if (closing && state.dirtyAny) {
+    const liveDirty = computeDirtyState().dirtyAny;
+    state.dirtyAny = liveDirty;
+
+    if (closing && liveDirty) {
       const ok = window.confirm("未保存の変更があります。保存せずに閉じますか？");
       if (!ok) {
         event.preventDefault();
@@ -394,7 +466,9 @@
   }, true);
 
   dialog.addEventListener("cancel", (event) => {
-    if (!state.dirtyAny) return;
+    const liveDirty = computeDirtyState().dirtyAny;
+    state.dirtyAny = liveDirty;
+    if (!liveDirty) return;
     if (!window.confirm("未保存の変更があります。保存せずに閉じますか？")) {
       event.preventDefault();
       event.stopImmediatePropagation();
