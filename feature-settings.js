@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9.1 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9.1-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -460,6 +460,11 @@
 
     const form = $("#green-site-area-edit-form", dialog);
     const save = $("#green-site-area-save", dialog);
+    const cancel = $("[data-dialog-close]", dialog);
+
+    // R1.9.1: this footer is replaced after owner.js binds its close handlers.
+    // Bind the dynamic cancel button so confirmed unsaved discard closes the dialog.
+    cancel?.addEventListener("click", () => dialog.close());
 
     save?.addEventListener("click", async () => {
       if (!form?.reportValidity()) return;
