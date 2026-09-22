@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.7 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.8 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.7-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.8-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -56,6 +56,8 @@
     enhancing: false,
     currentContractId: null,
     contractLoadToken: 0,
+    currentSiteId: null,
+    siteLoadToken: 0,
   };
 
   const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -164,6 +166,7 @@
       "green-site-detail-form",
       "customer-form",
       "contract-form",
+      "site-form",
       "lead-activity-form",
     ].includes(form.id);
   }
@@ -235,6 +238,62 @@
     }
   }
 
+
+
+  async function enhanceSiteMasterForm(form) {
+    if (!form || form.dataset.greenEvergreenSite === VERSION) return;
+
+    const editing = !!$('[name="customerId"][disabled]', form);
+    if (!editing) {
+      form.dataset.greenEvergreenSite = VERSION;
+      return;
+    }
+
+    let isActive = true;
+    const token = ++state.siteLoadToken;
+
+    if (state.currentSiteId && window.Green?.api) {
+      try {
+        const result = await window.Green.api(`/api/admin/sites/${encodeURIComponent(state.currentSiteId)}`);
+        if (token !== state.siteLoadToken || !form.isConnected) return;
+        isActive = result?.data?.site?.is_active !== false;
+      } catch {
+        return;
+      }
+    } else {
+      return;
+    }
+
+    if (!$('[name="isActive"]', form)) {
+      const anchor = $('[name="siteName"]', form)?.closest("label");
+      const label = document.createElement("label");
+      label.className = "owner-check owner-settings-check";
+      label.dataset.greenEvergreenSiteStatus = VERSION;
+
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "isActive";
+      input.checked = isActive;
+      input.defaultChecked = isActive;
+
+      const textNode = document.createTextNode("この拠点を利用中にする");
+      label.append(input, textNode);
+
+      const note = document.createElement("small");
+      note.className = "green-evergreen-required-note";
+      note.textContent = "OFFにしても拠点・設置履歴は削除されません。";
+
+      const wrap = document.createElement("div");
+      wrap.className = "full";
+      wrap.dataset.greenEvergreenSiteStatusWrap = VERSION;
+      wrap.append(label, note);
+
+      if (anchor?.parentNode) anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+      else form.prepend(wrap);
+    }
+
+    form.dataset.greenEvergreenSite = VERSION;
+  }
 
   function createContractDateField(form, name, labelText, value = "") {
     let input = $(`[name="${name}"]`, form);
@@ -417,6 +476,7 @@
       $("#site-check-form", dialog) ||
       $("#customer-form", dialog) ||
       $("#contract-form", dialog) ||
+      $("#site-form", dialog) ||
       null;
   }
 
@@ -557,6 +617,7 @@
     if (button.id === "green-site-detail-save") return validateSiteCheck($("#green-site-detail-form", dialog));
     if (button.id === "save-customer") return $("#customer-form", dialog)?.reportValidity() ?? true;
     if (button.id === "save-contract") return validateContract($("#contract-form", dialog));
+    if (button.id === "save-site") return $("#site-form", dialog)?.reportValidity() ?? true;
     if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
     return true;
   }
@@ -571,7 +632,8 @@
       const site = $("#green-site-detail-form", dialog) || $("#site-check-form", dialog);
       const customer = $("#customer-form", dialog);
       const contract = $("#contract-form", dialog);
-      if (!inquiry && !lead && !site && !customer && !contract) {
+      const siteMaster = $("#site-form", dialog);
+      if (!inquiry && !lead && !site && !customer && !contract && !siteMaster) {
         state.mainForm = null;
         state.trackedForms = [];
         state.dirtyAny = false;
@@ -583,6 +645,7 @@
       syncSalesDependencies(lead);
       syncSiteCheckDependencies(site);
       if (contract) await enhanceContractForm(contract);
+      if (siteMaster) await enhanceSiteMasterForm(siteMaster);
       decorateFileInputs();
 
       const nextMain = mainFormForDialog();
@@ -630,6 +693,11 @@
   }, true);
 
   document.addEventListener("click", (event) => {
+    const siteRowButton = event.target.closest?.("[data-site]");
+    if (siteRowButton?.dataset?.site) {
+      state.currentSiteId = siteRowButton.dataset.site;
+    }
+
     const contractRowButton = event.target.closest?.("[data-contract]");
     if (contractRowButton?.dataset?.contract) {
       state.currentContractId = contractRowButton.dataset.contract;
@@ -638,13 +706,16 @@
     if (event.target.closest?.('[data-action="new-contract"]') || event.target.closest?.("#add-contract-for-customer")) {
       state.currentContractId = null;
     }
+    if (event.target.closest?.('[data-action="new-site"]') || event.target.closest?.("#add-site-for-customer")) {
+      state.currentSiteId = null;
+    }
   }, true);
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button || !dialog.contains(button)) return;
 
-    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","save-contract","add-lead-activity"].includes(button.id)) {
+    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","save-contract","save-site","add-lead-activity"].includes(button.id)) {
       if (!validateButton(button)) {
         event.preventDefault();
         event.stopImmediatePropagation();
