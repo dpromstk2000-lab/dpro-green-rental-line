@@ -32,3 +32,391 @@
   document.addEventListener("DOMContentLoaded",()=>{$("#feature-save-all")?.addEventListener("click",save);$("#feature-history-reload")?.addEventListener("click",loadHistory);});
   window.GreenFeatureSettings={load};
 })();
+
+
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1 / 2026-09-22 */
+(() => {
+  "use strict";
+
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1-20260922";
+  if (!/\/owner\.html$/.test(location.pathname)) return;
+
+  const dialog = document.querySelector("#owner-dialog");
+  if (!dialog) return;
+
+  document.documentElement.dataset.greenEvergreenOwner = VERSION;
+
+  const state = {
+    baselineAll: "",
+    baselineMain: "",
+    dirtyAny: false,
+    dirtyMain: false,
+    mainForm: null,
+    trackedForms: [],
+    enhancing: false,
+  };
+
+  const $ = (selector, scope = document) => scope.querySelector(selector);
+  const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+
+  function installStyles() {
+    if (document.getElementById("green-evergreen-owner-r1-style")) return;
+    const style = document.createElement("style");
+    style.id = "green-evergreen-owner-r1-style";
+    style.textContent = `
+      #owner-dialog .green-evergreen-save-state{
+        margin-right:auto;display:inline-flex;align-items:center;gap:7px;min-height:38px;
+        padding:7px 11px;border-radius:10px;background:#edf6ef;color:#245a3d;
+        font-size:12px;font-weight:800;line-height:1.35
+      }
+      #owner-dialog .green-evergreen-save-state.is-dirty{
+        background:#fff4dd;color:#7a5410;border:1px solid #ead39b
+      }
+      #owner-dialog .green-evergreen-dependent[hidden]{display:none!important}
+      #owner-dialog .green-evergreen-file-ui{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px}
+      #owner-dialog .green-evergreen-file-button{
+        appearance:none;border:1px solid #b9c9bf;border-radius:10px;background:#fff;color:#173d32;
+        padding:9px 13px;font:inherit;font-weight:800;cursor:pointer
+      }
+      #owner-dialog .green-evergreen-file-button:hover{background:#f5faf6}
+      #owner-dialog .green-evergreen-file-name{color:#586c62;font-size:12px;font-weight:700;word-break:break-all}
+      #owner-dialog .green-evergreen-file-note{display:block;margin-top:5px;color:#65786e;font-size:11px;font-weight:600}
+      #owner-dialog .green-evergreen-file-native{
+        position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;
+        opacity:0!important;pointer-events:none!important
+      }
+      #owner-dialog .green-evergreen-required-note{
+        display:block;margin-top:4px;color:#61756b;font-size:11px;font-weight:700
+      }
+      #owner-dialog button:disabled{cursor:not-allowed;opacity:.48}
+      @media(max-width:760px){
+        #owner-dialog footer{flex-wrap:wrap}
+        #owner-dialog .green-evergreen-save-state{width:100%;margin-right:0}
+      }
+    `;
+    document.head.append(style);
+  }
+
+  function formSnapshot(form) {
+    if (!form) return "";
+    const entries = [];
+    const controls = $$("input,select,textarea", form);
+    for (const control of controls) {
+      if (!control.name || control.disabled) continue;
+      if (control.type === "file") {
+        const file = control.files?.[0];
+        entries.push([control.name, file ? `${file.name}:${file.size}:${file.type}` : ""]);
+      } else if (control.type === "checkbox" || control.type === "radio") {
+        entries.push([control.name, control.checked ? "1" : "0", control.value || ""]);
+      } else {
+        entries.push([control.name, control.value ?? ""]);
+      }
+    }
+    return JSON.stringify(entries);
+  }
+
+  function allSnapshot() {
+    return JSON.stringify(state.trackedForms.map((form) => [form.id || "", formSnapshot(form)]));
+  }
+
+  function setDependent(control, visible) {
+    if (!control) return;
+    const label = control.closest("label") || control.parentElement;
+    if (!label) return;
+    label.classList.add("green-evergreen-dependent");
+    label.hidden = !visible;
+    control.disabled = !visible;
+  }
+
+  function syncSalesDependencies(form) {
+    if (!form) return;
+    const status = $('[name="status"]', form)?.value || "";
+    const follow = $('[name="follow_up_on"],[name="followUpOn"]', form);
+    const hold = $('[name="hold_reason"],[name="holdReason"]', form);
+    const lost = $('[name="lost_reason"],[name="lostReason"]', form);
+
+    setDependent(follow, status === "follow_up");
+    setDependent(hold, status === "on_hold");
+    setDependent(lost, status === "lost");
+
+    if (follow) follow.min = new Intl.DateTimeFormat("en-CA", {
+      timeZone:"Asia/Tokyo", year:"numeric", month:"2-digit", day:"2-digit"
+    }).format(new Date());
+  }
+
+  function syncSiteCheckDependencies(form) {
+    if (!form) return;
+    const status = $('[name="status"]', form)?.value || "";
+    const start = $('[name="scheduledStart"],[name="scheduled_start"]', form);
+    const end = $('[name="scheduledEnd"],[name="scheduled_end"]', form);
+    const required = ["scheduled", "in_progress", "completed"].includes(status);
+
+    for (const input of [start, end]) {
+      if (!input) continue;
+      input.step = "900";
+      input.required = required;
+      const label = input.closest("label");
+      if (label) {
+        let note = $(".green-evergreen-required-note", label);
+        if (!note) {
+          note = document.createElement("span");
+          note.className = "green-evergreen-required-note";
+          label.append(note);
+        }
+        note.textContent = required ? "この状態では必須・15分刻み" : "15分刻み";
+      }
+    }
+  }
+
+  function mainFormForDialog() {
+    return $("#inquiry-update-form", dialog) ||
+      $("#lead-update-form", dialog) ||
+      $("#site-check-form", dialog) ||
+      null;
+  }
+
+  function trackedFormsForDialog() {
+    const forms = [];
+    const main = mainFormForDialog();
+    if (main) forms.push(main);
+
+    if ($("#lead-update-form", dialog)) {
+      const activity = $("#lead-activity-form", dialog);
+      if (activity) forms.push(activity);
+    }
+
+    if ($("#site-check-form", dialog)) {
+      $$("form", dialog).forEach((form) => {
+        if (!forms.includes(form) && form.querySelector('input[type="file"]')) forms.push(form);
+      });
+    }
+    return forms;
+  }
+
+  function ensureSaveState() {
+    const footer = $("#dialog-footer", dialog);
+    if (!footer || !state.mainForm) return null;
+    let node = $(".green-evergreen-save-state", footer);
+    if (!node) {
+      node = document.createElement("span");
+      node.className = "green-evergreen-save-state";
+      node.setAttribute("aria-live", "polite");
+      footer.prepend(node);
+    }
+    return node;
+  }
+
+  function syncDerivedActions() {
+    const mainDirty = state.dirtyMain;
+    const inquiryDerived = [
+      $("#create-lead-from-inquiry", dialog),
+      $("#create-customer-from-inquiry", dialog),
+    ].filter(Boolean);
+    inquiryDerived.forEach((button) => {
+      button.disabled = mainDirty;
+      button.title = mainDirty ? "相談内容の変更を先に保存してください。" : "";
+    });
+
+    const addActivity = $("#add-lead-activity", dialog);
+    if (addActivity) {
+      addActivity.disabled = mainDirty;
+      addActivity.title = mainDirty ? "案件の変更を先に保存してください。" : "";
+    }
+
+    if ($("#site-check-form", dialog)) {
+      $$("button", dialog).filter((button) => /写真を追加/.test(button.textContent || "")).forEach((button) => {
+        button.disabled = mainDirty;
+        button.title = mainDirty ? "現地確認の変更を先に保存してください。" : "";
+      });
+    }
+  }
+
+  function refreshDirty() {
+    if (!state.mainForm || !dialog.open) return;
+    state.dirtyMain = formSnapshot(state.mainForm) !== state.baselineMain;
+    state.dirtyAny = allSnapshot() !== state.baselineAll;
+
+    const node = ensureSaveState();
+    if (node) {
+      node.classList.toggle("is-dirty", state.dirtyAny);
+      node.textContent = state.dirtyAny
+        ? "未保存の変更があります。保存または入力を戻してください。"
+        : "✓ 現在の内容は保存済みです。";
+    }
+    syncDerivedActions();
+  }
+
+  function decorateFileInputs() {
+    if (!$("#site-check-form", dialog)) return;
+    $$('input[type="file"]', dialog).forEach((input) => {
+      if (input.dataset.greenEvergreenFile === VERSION) return;
+      input.dataset.greenEvergreenFile = VERSION;
+      input.accept = "image/jpeg,image/png,image/webp";
+      input.classList.add("green-evergreen-file-native");
+
+      const ui = document.createElement("span");
+      ui.className = "green-evergreen-file-ui";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "green-evergreen-file-button";
+      button.textContent = "写真を選択";
+      const name = document.createElement("span");
+      name.className = "green-evergreen-file-name";
+      name.textContent = input.files?.[0]?.name || "未選択";
+      const note = document.createElement("span");
+      note.className = "green-evergreen-file-note";
+      note.textContent = "JPEG / PNG / WebP・6MB以下";
+
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        input.click();
+      });
+      input.addEventListener("change", () => {
+        name.textContent = input.files?.[0]?.name || "未選択";
+        refreshDirty();
+      });
+
+      ui.append(button, name);
+      input.insertAdjacentElement("afterend", ui);
+      ui.insertAdjacentElement("afterend", note);
+    });
+  }
+
+  function validateSiteCheck(form) {
+    if (!form) return true;
+    const start = $('[name="scheduledStart"],[name="scheduled_start"]', form);
+    const end = $('[name="scheduledEnd"],[name="scheduled_end"]', form);
+    if (start && end) {
+      end.setCustomValidity("");
+      if (start.value && end.value && new Date(end.value).getTime() <= new Date(start.value).getTime()) {
+        end.setCustomValidity("終了日時は開始日時より後にしてください。");
+        end.reportValidity();
+        return false;
+      }
+    }
+    return form.reportValidity();
+  }
+
+  function validateButton(button) {
+    if (!button) return true;
+    if (button.id === "save-inquiry") return $("#inquiry-update-form", dialog)?.reportValidity() ?? true;
+    if (button.id === "save-lead") return $("#lead-update-form", dialog)?.reportValidity() ?? true;
+    if (button.id === "save-site-check") return validateSiteCheck($("#site-check-form", dialog));
+    if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
+    return true;
+  }
+
+  function enhanceDialog() {
+    if (state.enhancing || !dialog.open) return;
+    state.enhancing = true;
+    try {
+      const inquiry = $("#inquiry-update-form", dialog);
+      const lead = $("#lead-update-form", dialog);
+      const site = $("#site-check-form", dialog);
+      if (!inquiry && !lead && !site) {
+        state.mainForm = null;
+        state.trackedForms = [];
+        state.dirtyAny = false;
+        state.dirtyMain = false;
+        return;
+      }
+
+      syncSalesDependencies(inquiry);
+      syncSalesDependencies(lead);
+      syncSiteCheckDependencies(site);
+      decorateFileInputs();
+
+      const nextMain = mainFormForDialog();
+      const nextTracked = trackedFormsForDialog();
+      const formChanged = nextMain !== state.mainForm ||
+        nextTracked.length !== state.trackedForms.length ||
+        nextTracked.some((form, index) => form !== state.trackedForms[index]);
+
+      state.mainForm = nextMain;
+      state.trackedForms = nextTracked;
+
+      state.trackedForms.forEach((form) => {
+        if (form.dataset.greenEvergreenDirtyBound === VERSION) return;
+        form.dataset.greenEvergreenDirtyBound = VERSION;
+        const listener = (event) => {
+          if (event.target?.name === "status") {
+            syncSalesDependencies(form);
+            syncSiteCheckDependencies(form);
+          }
+          queueMicrotask(refreshDirty);
+        };
+        form.addEventListener("input", listener);
+        form.addEventListener("change", listener);
+      });
+
+      if (formChanged || !state.baselineAll) {
+        state.baselineMain = formSnapshot(state.mainForm);
+        state.baselineAll = allSnapshot();
+        state.dirtyAny = false;
+        state.dirtyMain = false;
+      }
+      refreshDirty();
+    } finally {
+      state.enhancing = false;
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || !dialog.contains(button)) return;
+
+    if (["save-inquiry","save-lead","save-site-check","add-lead-activity"].includes(button.id)) {
+      if (!validateButton(button)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+    }
+
+    const closing = button.id === "dialog-close" ||
+      button.id === "dialog-cancel" ||
+      button.hasAttribute("data-dialog-close");
+
+    if (closing && state.dirtyAny) {
+      const ok = window.confirm("未保存の変更があります。保存せずに閉じますか？");
+      if (!ok) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }
+  }, true);
+
+  dialog.addEventListener("cancel", (event) => {
+    if (!state.dirtyAny) return;
+    if (!window.confirm("未保存の変更があります。保存せずに閉じますか？")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+
+  dialog.addEventListener("close", () => {
+    state.baselineAll = "";
+    state.baselineMain = "";
+    state.dirtyAny = false;
+    state.dirtyMain = false;
+    state.mainForm = null;
+    state.trackedForms = [];
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.dirtyAny) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  const observer = new MutationObserver(() => {
+    clearTimeout(observer._timer);
+    observer._timer = setTimeout(enhanceDialog, 20);
+  });
+  observer.observe(dialog, { childList:true, subtree:true, attributes:true, attributeFilter:["open"] });
+
+  installStyles();
+  enhanceDialog();
+  console.info(`[DPRO GREEN] ${VERSION} active`);
+})();
