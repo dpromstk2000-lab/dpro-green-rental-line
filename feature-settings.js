@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.6 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.7 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.6-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.7-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -277,6 +277,17 @@
 
   function syncContractDependencies(form) {
     if (!form) return;
+
+    const plannedLabel = $('[name="plannedEndDate"]', form)?.closest("label");
+    const orderedInputs = [
+      $('[name="pauseFrom"]', form),
+      $('[name="pauseUntil"]', form),
+      $('[name="removalScheduledOn"]', form),
+      $('[name="actualEndDate"]', form),
+    ];
+    const orderedLabels = orderedInputs.map((input) => input?.closest("label")).filter(Boolean);
+    if (plannedLabel && orderedLabels.length) plannedLabel.after(...orderedLabels);
+
     const status = $('[name="status"]', form)?.value || "";
     const pauseFrom = $('[name="pauseFrom"]', form);
     const pauseUntil = $('[name="pauseUntil"]', form);
@@ -316,10 +327,18 @@
       }
     }
 
-    createContractDateField(form, "pauseFrom", "休止開始日", contract?.pause_from || "");
-    createContractDateField(form, "pauseUntil", "休止終了日", contract?.pause_until || "");
-    createContractDateField(form, "removalScheduledOn", "撤去予定日", contract?.removal_scheduled_on || "");
-    createContractDateField(form, "actualEndDate", "終了日", contract?.actual_end_date || "");
+    const pauseFrom = createContractDateField(form, "pauseFrom", "休止開始日", contract?.pause_from || "");
+    const pauseUntil = createContractDateField(form, "pauseUntil", "休止終了日", contract?.pause_until || "");
+    const removalScheduledOn = createContractDateField(form, "removalScheduledOn", "撤去予定日", contract?.removal_scheduled_on || "");
+    const actualEndDate = createContractDateField(form, "actualEndDate", "終了日", contract?.actual_end_date || "");
+
+    const plannedLabel = $('[name="plannedEndDate"]', form)?.closest("label");
+    const orderedLifecycleLabels = [pauseFrom, pauseUntil, removalScheduledOn, actualEndDate]
+      .map((input) => input?.closest("label"))
+      .filter(Boolean);
+    if (plannedLabel && orderedLifecycleLabels.length) {
+      plannedLabel.after(...orderedLifecycleLabels);
+    }
 
     form.dataset.greenEvergreenContract = VERSION;
     syncContractDependencies(form);
