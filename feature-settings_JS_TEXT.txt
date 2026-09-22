@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.5 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.6 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.5-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.6-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -249,7 +249,9 @@
     input.defaultValue = value || "";
     label.append(input);
     const planned = $('[name="plannedEndDate"]', form)?.closest("label");
-    if (planned?.parentNode) planned.parentNode.insertBefore(label, planned.nextSibling);
+    const lifecycleFields = $$("[data-green-evergreen-contract-field]", form);
+    const anchor = lifecycleFields.length ? lifecycleFields[lifecycleFields.length - 1] : planned;
+    if (anchor?.parentNode) anchor.parentNode.insertBefore(label, anchor.nextSibling);
     else form.append(label);
     return input;
   }
