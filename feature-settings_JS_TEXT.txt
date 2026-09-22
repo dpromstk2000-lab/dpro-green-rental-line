@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.1 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.2 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.1-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.2-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -172,6 +172,7 @@
       $("#lead-update-form", dialog) ||
       $("#green-site-detail-form", dialog) ||
       $("#site-check-form", dialog) ||
+      $("#customer-form", dialog) ||
       null;
   }
 
@@ -306,6 +307,7 @@
     if (button.id === "save-lead") return $("#lead-update-form", dialog)?.reportValidity() ?? true;
     if (button.id === "save-site-check") return validateSiteCheck($("#site-check-form", dialog));
     if (button.id === "green-site-detail-save") return validateSiteCheck($("#green-site-detail-form", dialog));
+    if (button.id === "save-customer") return $("#customer-form", dialog)?.reportValidity() ?? true;
     if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
     return true;
   }
@@ -369,7 +371,7 @@
     const button = event.target.closest("button");
     if (!button || !dialog.contains(button)) return;
 
-    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","add-lead-activity"].includes(button.id)) {
+    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","add-lead-activity"].includes(button.id)) {
       if (!validateButton(button)) {
         event.preventDefault();
         event.stopImmediatePropagation();
