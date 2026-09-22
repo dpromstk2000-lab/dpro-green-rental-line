@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.4 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.5 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.4-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.5-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -54,6 +54,8 @@
     mainForm: null,
     trackedForms: [],
     enhancing: false,
+    currentContractId: null,
+    contractLoadToken: 0,
   };
 
   const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -87,6 +89,13 @@
       }
       #owner-dialog .green-evergreen-required-note{
         display:block;margin-top:4px;color:#61756b;font-size:11px;font-weight:700
+      }
+      #owner-dialog .green-evergreen-contract-note{
+        grid-column:1 / -1;margin:0;padding:10px 12px;border-radius:10px;
+        background:#edf6ef;color:#245a3d;font-size:12px;font-weight:700;line-height:1.55
+      }
+      #owner-dialog .green-evergreen-contract-note.is-alert{
+        background:#fff4dd;color:#7a5410;border:1px solid #ead39b
       }
       #owner-dialog button:disabled{cursor:not-allowed;opacity:.48}
       @media(max-width:760px){
@@ -154,6 +163,7 @@
       "site-check-form",
       "green-site-detail-form",
       "customer-form",
+      "contract-form",
       "lead-activity-form",
     ].includes(form.id);
   }
@@ -225,12 +235,167 @@
     }
   }
 
+
+  function createContractDateField(form, name, labelText, value = "") {
+    let input = $(`[name="${name}"]`, form);
+    if (input) return input;
+    const label = document.createElement("label");
+    label.dataset.greenEvergreenContractField = name;
+    label.textContent = labelText;
+    input = document.createElement("input");
+    input.type = "date";
+    input.name = name;
+    input.value = value || "";
+    input.defaultValue = value || "";
+    label.append(input);
+    const planned = $('[name="plannedEndDate"]', form)?.closest("label");
+    if (planned?.parentNode) planned.parentNode.insertBefore(label, planned.nextSibling);
+    else form.append(label);
+    return input;
+  }
+
+  function contractLifecycleStatusNote(form) {
+    if (!form) return;
+    let note = $(".green-evergreen-contract-note", form);
+    if (!note) {
+      note = document.createElement("div");
+      note.className = "green-evergreen-contract-note";
+      form.append(note);
+    }
+    const status = $('[name="status"]', form)?.value || "";
+    const messages = {
+      paused: "休止では「休止開始日」を必須にし、終了予定が決まっている場合は「休止終了日」も記録します。",
+      cancellation_requested: "解約申出へ変更すると、申出日時は保存時にシステムが自動記録します。",
+      removal_scheduled: "撤去予定では「撤去予定日」を記録します。",
+      ended: "終了では「終了日」を記録します。",
+    };
+    note.textContent = messages[status] || "状態に応じて必要な日付項目だけを表示します。";
+    note.classList.toggle("is-alert", ["cancellation_requested","removal_scheduled","ended"].includes(status));
+  }
+
+  function syncContractDependencies(form) {
+    if (!form) return;
+    const status = $('[name="status"]', form)?.value || "";
+    const pauseFrom = $('[name="pauseFrom"]', form);
+    const pauseUntil = $('[name="pauseUntil"]', form);
+    const removal = $('[name="removalScheduledOn"]', form);
+    const actualEnd = $('[name="actualEndDate"]', form);
+
+    setDependent(pauseFrom, status === "paused");
+    setDependent(pauseUntil, status === "paused");
+    setDependent(removal, status === "removal_scheduled");
+    setDependent(actualEnd, status === "ended");
+
+    if (pauseFrom) pauseFrom.required = status === "paused";
+    if (pauseUntil) pauseUntil.required = false;
+    if (removal) removal.required = status === "removal_scheduled";
+    if (actualEnd) actualEnd.required = status === "ended";
+
+    contractLifecycleStatusNote(form);
+  }
+
+  async function enhanceContractForm(form) {
+    if (!form) return;
+
+    if (form.dataset.greenEvergreenContract === VERSION) {
+      syncContractDependencies(form);
+      return;
+    }
+
+    const token = ++state.contractLoadToken;
+    let contract = null;
+    if (state.currentContractId && window.Green?.api) {
+      try {
+        const result = await window.Green.api(`/api/admin/contracts/${encodeURIComponent(state.currentContractId)}`);
+        if (token !== state.contractLoadToken || !form.isConnected) return;
+        contract = result?.data?.contract || null;
+      } catch {
+        contract = null;
+      }
+    }
+
+    createContractDateField(form, "pauseFrom", "休止開始日", contract?.pause_from || "");
+    createContractDateField(form, "pauseUntil", "休止終了日", contract?.pause_until || "");
+    createContractDateField(form, "removalScheduledOn", "撤去予定日", contract?.removal_scheduled_on || "");
+    createContractDateField(form, "actualEndDate", "終了日", contract?.actual_end_date || "");
+
+    form.dataset.greenEvergreenContract = VERSION;
+    syncContractDependencies(form);
+  }
+
+  function validateContract(form) {
+    if (!form) return true;
+    const start = $('[name="startDate"]', form);
+    const planned = $('[name="plannedEndDate"]', form);
+    const pauseFrom = $('[name="pauseFrom"]', form);
+    const pauseUntil = $('[name="pauseUntil"]', form);
+    const removal = $('[name="removalScheduledOn"]', form);
+    const actualEnd = $('[name="actualEndDate"]', form);
+
+    for (const input of [planned, pauseUntil, removal, actualEnd]) input?.setCustomValidity("");
+
+    if (start?.value && planned?.value && planned.value < start.value) {
+      planned.setCustomValidity("終了予定日は開始日以降にしてください。");
+      planned.reportValidity();
+      return false;
+    }
+    if (pauseFrom?.value && pauseUntil?.value && pauseUntil.value < pauseFrom.value) {
+      pauseUntil.setCustomValidity("休止終了日は休止開始日以降にしてください。");
+      pauseUntil.reportValidity();
+      return false;
+    }
+    if (start?.value && removal?.value && removal.value < start.value) {
+      removal.setCustomValidity("撤去予定日は開始日以降にしてください。");
+      removal.reportValidity();
+      return false;
+    }
+    if (start?.value && actualEnd?.value && actualEnd.value < start.value) {
+      actualEnd.setCustomValidity("終了日は開始日以降にしてください。");
+      actualEnd.reportValidity();
+      return false;
+    }
+    return form.reportValidity();
+  }
+
+  const contractChangeTypeLabels = Object.freeze({
+    visit_change_request: "訪問変更依頼",
+    service_change_request: "利用内容変更依頼",
+    additional_service_request: "追加サービス相談",
+    cancellation_request: "解約相談",
+  });
+
+  const contractChangeStatusLabels = Object.freeze({
+    requested: "受付中",
+    reviewing: "確認中",
+    approved: "承認済み",
+    rejected: "見送り",
+    completed: "完了",
+    cancelled: "取消",
+  });
+
+  function localizeContractHistory() {
+    $$("section", dialog).forEach((section) => {
+      const heading = $("h3", section);
+      if (!heading || heading.textContent.trim() !== "変更履歴") return;
+      $$(".owner-mini-item", section).forEach((item) => {
+        if (item.dataset.greenEvergreenHistoryLocalized === VERSION) return;
+        const raw = item.textContent.trim();
+        const parts = raw.split(/[｜|]/).map((part) => part.trim());
+        if (parts.length < 2) return;
+        const [type, status] = parts;
+        item.textContent = `${contractChangeTypeLabels[type] || type}｜${contractChangeStatusLabels[status] || status}`;
+        item.dataset.greenEvergreenHistoryLocalized = VERSION;
+      });
+    });
+  }
+
   function mainFormForDialog() {
     return $("#inquiry-update-form", dialog) ||
       $("#lead-update-form", dialog) ||
       $("#green-site-detail-form", dialog) ||
       $("#site-check-form", dialog) ||
       $("#customer-form", dialog) ||
+      $("#contract-form", dialog) ||
       null;
   }
 
@@ -370,19 +535,22 @@
     if (button.id === "save-site-check") return validateSiteCheck($("#site-check-form", dialog));
     if (button.id === "green-site-detail-save") return validateSiteCheck($("#green-site-detail-form", dialog));
     if (button.id === "save-customer") return $("#customer-form", dialog)?.reportValidity() ?? true;
+    if (button.id === "save-contract") return validateContract($("#contract-form", dialog));
     if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
     return true;
   }
 
-  function enhanceDialog() {
+  async function enhanceDialog() {
     if (state.enhancing || !dialog.open) return;
     state.enhancing = true;
     try {
+      localizeContractHistory();
       const inquiry = $("#inquiry-update-form", dialog);
       const lead = $("#lead-update-form", dialog);
       const site = $("#green-site-detail-form", dialog) || $("#site-check-form", dialog);
       const customer = $("#customer-form", dialog);
-      if (!inquiry && !lead && !site && !customer) {
+      const contract = $("#contract-form", dialog);
+      if (!inquiry && !lead && !site && !customer && !contract) {
         state.mainForm = null;
         state.trackedForms = [];
         state.dirtyAny = false;
@@ -393,6 +561,7 @@
       syncSalesDependencies(inquiry);
       syncSalesDependencies(lead);
       syncSiteCheckDependencies(site);
+      if (contract) await enhanceContractForm(contract);
       decorateFileInputs();
 
       const nextMain = mainFormForDialog();
@@ -408,6 +577,7 @@
           if (event.target?.name === "status") {
             syncSalesDependencies(form);
             syncSiteCheckDependencies(form);
+            syncContractDependencies(form);
           }
           queueMicrotask(refreshDirty);
         };
@@ -433,15 +603,27 @@
     if (event.target?.name === "status") {
       syncSalesDependencies(form);
       syncSiteCheckDependencies(form);
+      syncContractDependencies(form);
     }
     queueMicrotask(refreshDirty);
+  }, true);
+
+  document.addEventListener("click", (event) => {
+    const contractRowButton = event.target.closest?.("[data-contract]");
+    if (contractRowButton?.dataset?.contract) {
+      state.currentContractId = contractRowButton.dataset.contract;
+      return;
+    }
+    if (event.target.closest?.('[data-action="new-contract"]') || event.target.closest?.("#add-contract-for-customer")) {
+      state.currentContractId = null;
+    }
   }, true);
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button || !dialog.contains(button)) return;
 
-    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","add-lead-activity"].includes(button.id)) {
+    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","save-contract","add-lead-activity"].includes(button.id)) {
       if (!validateButton(button)) {
         event.preventDefault();
         event.stopImmediatePropagation();
