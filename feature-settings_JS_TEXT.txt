@@ -34,11 +34,11 @@
 })();
 
 
-/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.8 / 2026-09-22 */
+/* DPRO GREEN / PRODUCT EVERGREEN / OWNER COMMON BRUSHUP R1.9 / 2026-09-22 */
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-EVERGREEN-OWNER-R1.8-20260922";
+  const VERSION = "GREEN-EVERGREEN-OWNER-R1.9-20260922";
   if (!/\/owner\.html$/.test(location.pathname)) return;
 
   const dialog = document.querySelector("#owner-dialog");
@@ -58,6 +58,8 @@
     contractLoadToken: 0,
     currentSiteId: null,
     siteLoadToken: 0,
+    siteAreaDetailToken: 0,
+    currentSiteAreas: new Map(),
   };
 
   const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -98,6 +100,23 @@
       }
       #owner-dialog .green-evergreen-contract-note.is-alert{
         background:#fff4dd;color:#7a5410;border:1px solid #ead39b
+      }
+      #owner-dialog .green-evergreen-area-row{
+        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap
+      }
+      #owner-dialog .green-evergreen-area-main{
+        min-width:0;flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap
+      }
+      #owner-dialog .green-evergreen-area-status{
+        display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:999px;
+        background:#e7f4ea;color:#16613f;font-size:11px;font-weight:800;white-space:nowrap
+      }
+      #owner-dialog .green-evergreen-area-status.is-inactive{
+        background:#f1f2f1;color:#657069
+      }
+      #owner-dialog .green-evergreen-area-note{
+        grid-column:1 / -1;margin:0;padding:10px 12px;border-radius:10px;
+        background:#edf6ef;color:#245a3d;font-size:12px;font-weight:700;line-height:1.55
       }
       #owner-dialog button:disabled{cursor:not-allowed;opacity:.48}
       @media(max-width:760px){
@@ -167,6 +186,7 @@
       "customer-form",
       "contract-form",
       "site-form",
+      "green-site-area-edit-form",
       "lead-activity-form",
     ].includes(form.id);
   }
@@ -293,6 +313,191 @@
     }
 
     form.dataset.greenEvergreenSite = VERSION;
+  }
+
+
+  const htmlEscape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[char]));
+
+  function siteAreaSection() {
+    return $$("section", dialog).find((section) => {
+      const heading = $("h3", section);
+      return heading?.textContent?.trim() === "設置場所";
+    }) || null;
+  }
+
+  function reopenCurrentSiteDetail(siteId) {
+    const rowButton = document.querySelector(`[data-site="${CSS.escape(siteId)}"]`);
+    if (rowButton) {
+      setTimeout(() => rowButton.click(), 50);
+      return;
+    }
+    Green.toast("設置場所を更新しました。拠点一覧から詳細を開き直してください。", "success");
+  }
+
+  function renderSiteAreaSection(section, areas, siteId) {
+    if (!section) return;
+    const heading = $("h3", section);
+    Array.from(section.children).forEach((child) => {
+      if (child !== heading) child.remove();
+    });
+
+    if (!areas.length) {
+      const empty = document.createElement("div");
+      empty.className = "owner-empty";
+      empty.textContent = "登録はありません。";
+      section.append(empty);
+      section.dataset.greenEvergreenSiteAreas = VERSION;
+      return;
+    }
+
+    for (const area of areas) {
+      state.currentSiteAreas.set(area.id, area);
+
+      const row = document.createElement("div");
+      row.className = "owner-mini-item green-evergreen-area-row";
+
+      const main = document.createElement("div");
+      main.className = "green-evergreen-area-main";
+
+      const textNode = document.createElement("span");
+      const name = area.area_name || "名称未設定";
+      const floor = area.floor_name ? `（${area.floor_name}）` : "";
+      const placement = area.placement_note || "メモなし";
+      textNode.textContent = `${name}${floor}｜${placement}`;
+
+      const status = document.createElement("span");
+      const active = area.is_active !== false;
+      status.className = `green-evergreen-area-status${active ? "" : " is-inactive"}`;
+      status.textContent = active ? "利用中" : "停止";
+
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "btn btn--secondary btn--small";
+      edit.textContent = "編集";
+      edit.dataset.greenSiteAreaEdit = area.id;
+      edit.addEventListener("click", () => openSiteAreaEdit(siteId, area));
+
+      main.append(textNode, status);
+      row.append(main, edit);
+      section.append(row);
+    }
+
+    const note = document.createElement("p");
+    note.className = "green-evergreen-area-note";
+    note.textContent = "停止しても設置履歴は削除されません。停止中の設置場所は新しい配置先には選択できません。";
+    section.append(note);
+    section.dataset.greenEvergreenSiteAreas = VERSION;
+  }
+
+  async function enhanceSiteAreaDetail() {
+    const kicker = $("#dialog-kicker", dialog)?.textContent?.trim();
+    if (kicker !== "SITE DETAIL" || !state.currentSiteId) return false;
+
+    const section = siteAreaSection();
+    if (!section) return false;
+    if (section.dataset.greenEvergreenSiteAreas === VERSION) return true;
+
+    const token = ++state.siteAreaDetailToken;
+    try {
+      const result = await Green.api(`/api/admin/sites/${encodeURIComponent(state.currentSiteId)}`);
+      if (token !== state.siteAreaDetailToken || !dialog.open) return true;
+      const areas = Array.isArray(result?.data?.areas) ? result.data.areas : [];
+      state.currentSiteAreas.clear();
+      renderSiteAreaSection(section, areas, state.currentSiteId);
+    } catch {
+      return true;
+    }
+    return true;
+  }
+
+  function openSiteAreaEdit(siteId, area) {
+    const body = $("#dialog-body", dialog);
+    const footer = $("#dialog-footer", dialog);
+    const title = $("#dialog-title", dialog);
+    const kicker = $("#dialog-kicker", dialog);
+    if (!body || !footer || !title || !kicker) return;
+
+    kicker.textContent = "SITE AREA";
+    title.textContent = `設置場所を編集：${area.area_name || ""}`;
+
+    body.innerHTML = `
+      <form id="green-site-area-edit-form" class="owner-form-grid">
+        <label>設置場所名
+          <input name="areaName" required maxlength="200" value="${htmlEscape(area.area_name || "")}">
+        </label>
+        <label>階
+          <input name="floorName" maxlength="100" value="${htmlEscape(area.floor_name || "")}">
+        </label>
+        <label>部屋名
+          <input name="roomName" maxlength="100" value="${htmlEscape(area.room_name || "")}">
+        </label>
+        <label>場所種別
+          <input name="areaType" maxlength="100" value="${htmlEscape(area.area_type || "")}">
+        </label>
+        <label class="full">アクセス注意
+          <textarea name="accessNote" maxlength="2000">${htmlEscape(area.access_note || "")}</textarea>
+        </label>
+        <label class="full">設置メモ
+          <textarea name="placementNote" maxlength="2000">${htmlEscape(area.placement_note || "")}</textarea>
+        </label>
+        <div class="full">
+          <label class="owner-check owner-settings-check">
+            <input name="isActive" type="checkbox"${area.is_active !== false ? " checked" : ""}>
+            この設置場所を利用中にする
+          </label>
+          <small class="green-evergreen-required-note">OFFにしても過去の設置・移動・作業履歴は削除されません。</small>
+        </div>
+      </form>
+      <p class="green-evergreen-area-note">停止中の設置場所は新しい配置先として選択できません。再開すると再び選択できます。</p>
+    `;
+
+    footer.innerHTML = `
+      <button type="button" class="btn btn--secondary" data-dialog-close>取消</button>
+      <button type="button" class="btn btn--primary" id="green-site-area-save">更新</button>
+    `;
+
+    const form = $("#green-site-area-edit-form", dialog);
+    const save = $("#green-site-area-save", dialog);
+
+    save?.addEventListener("click", async () => {
+      if (!form?.reportValidity()) return;
+      if (formSnapshot(form) === formDefaultSnapshot(form)) {
+        Green.toast("変更はありません。");
+        return;
+      }
+
+      const payload = {
+        areaName: $('[name="areaName"]', form)?.value.trim() || "",
+        floorName: $('[name="floorName"]', form)?.value.trim() || "",
+        roomName: $('[name="roomName"]', form)?.value.trim() || "",
+        areaType: $('[name="areaType"]', form)?.value.trim() || "",
+        accessNote: $('[name="accessNote"]', form)?.value.trim() || "",
+        placementNote: $('[name="placementNote"]', form)?.value.trim() || "",
+        isActive: $('[name="isActive"]', form)?.checked === true,
+      };
+
+      save.disabled = true;
+      try {
+        const result = await Green.api(
+          `/api/admin/sites/${encodeURIComponent(siteId)}/areas/${encodeURIComponent(area.id)}`,
+          { method:"PATCH", json:payload }
+        );
+        const updated = result?.data?.area || { ...area, ...payload };
+        state.currentSiteAreas.set(area.id, updated);
+        Green.toast("設置場所を更新しました。", "success");
+
+        state.dirtyAny = false;
+        state.dirtyMain = false;
+        dialog.close();
+        reopenCurrentSiteDetail(siteId);
+      } catch {
+        save.disabled = false;
+      }
+    });
+
+    queueMicrotask(enhanceDialog);
   }
 
   function createContractDateField(form, name, labelText, value = "") {
@@ -477,6 +682,7 @@
       $("#customer-form", dialog) ||
       $("#contract-form", dialog) ||
       $("#site-form", dialog) ||
+      $("#green-site-area-edit-form", dialog) ||
       null;
   }
 
@@ -618,6 +824,7 @@
     if (button.id === "save-customer") return $("#customer-form", dialog)?.reportValidity() ?? true;
     if (button.id === "save-contract") return validateContract($("#contract-form", dialog));
     if (button.id === "save-site") return $("#site-form", dialog)?.reportValidity() ?? true;
+    if (button.id === "green-site-area-save") return $("#green-site-area-edit-form", dialog)?.reportValidity() ?? true;
     if (button.id === "add-lead-activity") return $("#lead-activity-form", dialog)?.reportValidity() ?? true;
     return true;
   }
@@ -627,13 +834,15 @@
     state.enhancing = true;
     try {
       localizeContractHistory();
+      await enhanceSiteAreaDetail();
       const inquiry = $("#inquiry-update-form", dialog);
       const lead = $("#lead-update-form", dialog);
       const site = $("#green-site-detail-form", dialog) || $("#site-check-form", dialog);
       const customer = $("#customer-form", dialog);
       const contract = $("#contract-form", dialog);
       const siteMaster = $("#site-form", dialog);
-      if (!inquiry && !lead && !site && !customer && !contract && !siteMaster) {
+      const siteAreaEdit = $("#green-site-area-edit-form", dialog);
+      if (!inquiry && !lead && !site && !customer && !contract && !siteMaster && !siteAreaEdit) {
         state.mainForm = null;
         state.trackedForms = [];
         state.dirtyAny = false;
@@ -715,7 +924,7 @@
     const button = event.target.closest("button");
     if (!button || !dialog.contains(button)) return;
 
-    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","save-contract","save-site","add-lead-activity"].includes(button.id)) {
+    if (["save-inquiry","save-lead","save-site-check","green-site-detail-save","save-customer","save-contract","save-site","green-site-area-save","add-lead-activity"].includes(button.id)) {
       if (!validateButton(button)) {
         event.preventDefault();
         event.stopImmediatePropagation();
