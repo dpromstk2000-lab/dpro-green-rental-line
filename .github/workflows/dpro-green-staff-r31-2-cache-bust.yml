@@ -1,0 +1,60 @@
+name: DPRO GREEN Staff R31.2 Cache Bust
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dpro-green-staff-r31-2-cache-bust.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify FACT LOCK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object owner.html)" = "b25c2a51787fae5c87e5ba737046e4bf7e085a20"
+          grep -F 'GREEN-STAFF-MANAGEMENT-R31.2-20260923' config.js
+          grep -F 'GREEN-STAFF-MANAGEMENT-R31.2-20260923' green-staff-management-r31.js
+          echo "FACT LOCK OK"
+
+      - name: Update owner config cache key
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("owner.html")
+          text = p.read_text(encoding="utf-8")
+          old = '<script src="config.js?v=GREEN-EVG-R2.2-20260923"></script>'
+          new = '<script src="config.js?v=GREEN-STAFF-R31.2-20260923"></script>'
+          if text.count(old) != 1:
+              raise SystemExit(f"ABORT: expected one old config script, found {text.count(old)}")
+          p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+      - name: Verify patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F '<script src="config.js?v=GREEN-STAFF-R31.2-20260923"></script>' owner.html
+          git diff --check
+
+      - name: Commit application file
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN Evergreen"
+          git config user.email "actions@users.noreply.github.com"
+          git add owner.html
+          git commit -m "Bust GREEN staff management config cache"
+          git push origin HEAD:main
