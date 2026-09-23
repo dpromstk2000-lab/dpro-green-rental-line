@@ -1,6 +1,7 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-SHOP-OWNER-R1.2-20260831";
+  const VERSION = "GREEN-SHOP-OWNER-R1.3-20260923";
+  const FEATURE_GROUP = "販売・SHOP";
   const SETTINGS_KEY = "dpro_green_shop_settings_v1";
   const PRODUCTS_KEY = "dpro_green_shop_products_v1";
   const ORDERS_KEY = "dpro_green_shop_orders_v1";
@@ -90,10 +91,75 @@
     $$('[data-shop-close]',d).forEach(b=>b.onclick=()=>d.close());$("#green-shop-product-form",d).onsubmit=e=>{e.preventDefault();const fd=new FormData(e.currentTarget),items=products();const next={id:p.id||`green-${Date.now().toString(36)}`,name:String(fd.get("name")||"").trim(),category:String(fd.get("category")||"その他"),price:Number(fd.get("price"))||0,stock:Number(fd.get("stock"))||0,image:String(fd.get("image")||"green-shop-pachira-6.webp"),lead:String(fd.get("lead")||""),description:String(fd.get("description")||""),published:fd.get("published")==="on"};const i=items.findIndex(x=>x.id===next.id);if(i>=0)items[i]=next;else items.unshift(next);saveProducts(items);d.close();render();}; d.showModal();
   }
   function openOrderDialog(id){ ensureDialog();const d=$("#green-shop-dialog"),o=orders().find(x=>x.id===id);if(!o)return;d.innerHTML=`<div class="green-shop-dialog-head"><div><small>ORDER DETAIL / DEMO</small><h3>${esc(o.number)}</h3></div><button class="green-shop-dialog-close" type="button" data-shop-close>×</button></div><div class="green-shop-form"><div class="wide"><strong>お客様</strong><p>${esc(o.customer?.name||"—")} / ${esc(o.customer?.phone||"")}<br>${esc(o.customer?.address||"")}</p></div><div class="wide"><strong>商品</strong><p>${(o.items||[]).map(i=>`${esc(i.name)} × ${Number(i.qty)||1}　${yen((Number(i.price)||0)*(Number(i.qty)||1))}`).join("<br>")}</p></div><div><strong>受取方法</strong><p>${esc(o.deliveryMethod||"配送")}</p></div><div><strong>決済</strong><p>${o.paymentStatus==="paid_demo"?"Square決済済み（DEMO）":esc(o.paymentStatus||"—")}</p></div><div class="wide"><strong>合計</strong><p style="font-size:22px;font-weight:800">${yen(o.total)}</p></div></div><div class="green-shop-dialog-foot"><button class="green-shop-mini" type="button" data-shop-close>閉じる</button></div>`;$$('[data-shop-close]',d).forEach(b=>b.onclick=()=>d.close());d.showModal(); }
+  function activateFeatureCategory(group){
+    $$("[data-feature-group]").forEach(panel=>{
+      panel.hidden=panel.dataset.featureGroup!==group;
+    });
+    $$("[data-feature-category]").forEach(button=>{
+      const active=button.dataset.featureCategory===group;
+      button.classList.toggle("is-active",active);
+      button.setAttribute("aria-current",active?"true":"false");
+    });
+    const select=$("#feature-category-select");
+    if(select&&select.value!==group)select.value=group;
+  }
+
+  function syncFeatureCategory(){
+    const card=$("#green-shop-feature-card");
+    const nav=$("#feature-category-nav");
+    const select=$("#feature-category-select");
+    if(!card||!nav)return;
+
+    card.dataset.featureGroup=FEATURE_GROUP;
+
+    let button=nav.querySelector(`[data-feature-category="${FEATURE_GROUP}"]`);
+    if(!button){
+      button=document.createElement("button");
+      button.type="button";
+      button.dataset.featureCategory=FEATURE_GROUP;
+      button.textContent=FEATURE_GROUP;
+      nav.prepend(button);
+      button.addEventListener("click",()=>activateFeatureCategory(FEATURE_GROUP));
+    }
+
+    if(select&&!Array.from(select.options).some(option=>option.value===FEATURE_GROUP)){
+      select.add(new Option(FEATURE_GROUP,FEATURE_GROUP),0);
+    }
+
+    const active =
+      nav.querySelector("[data-feature-category].is-active")?.dataset.featureCategory ||
+      select?.value ||
+      "";
+    card.hidden=active!==FEATURE_GROUP;
+  }
+
   function injectFeatureCard(){
-    const box=$("#feature-groups"); if(!box||$("#green-shop-feature-card")) return; const s=settings(); const card=document.createElement("article");card.id="green-shop-feature-card";card.className="owner-panel feature-group green-shop-feature-card";card.innerHTML=`<div class="owner-panel-head"><h3>販売・SHOP MODULE <span class="green-shop-feature-pill">OPTION</span></h3></div><div class="feature-grid"><div class="feature-card"><div class="green-shop-feature-inline"><div><strong>販売機能を使う</strong><small>レンタル専用 / レンタル＋販売を切替</small></div><label class="green-shop-toggle"><input id="green-shop-feature-switch" type="checkbox" ${s.enabled?"checked":""}><span class="green-shop-toggle-track"></span><span class="green-shop-toggle-label">${s.enabled?"ON":"OFF"}</span></label></div><div class="green-shop-linkbar"><a href="${esc(SHOP_URL)}" target="_blank" rel="noopener">公開SHOPを見る</a></div></div></div>`;box.prepend(card);$("#green-shop-feature-switch",card).onchange=e=>{saveSettings({...settings(),enabled:e.target.checked});installNav();injectFeatureCardRefresh();}; }
+    const box=$("#feature-groups");
+    if(!box||$("#green-shop-feature-card"))return;
+    const s=settings();
+    const card=document.createElement("article");
+    card.id="green-shop-feature-card";
+    card.className="owner-panel feature-group green-shop-feature-card";
+    card.dataset.featureGroup=FEATURE_GROUP;
+    card.innerHTML=`<div class="owner-panel-head"><h3>販売・SHOP MODULE <span class="green-shop-feature-pill">OPTION</span></h3></div><div class="feature-grid"><div class="feature-card"><div class="green-shop-feature-inline"><div><strong>販売機能を使う</strong><small>レンタル専用 / レンタル＋販売を切替</small></div><label class="green-shop-toggle"><input id="green-shop-feature-switch" type="checkbox" ${s.enabled?"checked":""}><span class="green-shop-toggle-track"></span><span class="green-shop-toggle-label">${s.enabled?"ON":"OFF"}</span></label></div><div class="green-shop-linkbar"><a href="${esc(SHOP_URL)}" target="_blank" rel="noopener">公開SHOPを見る</a></div></div></div>`;
+    box.prepend(card);
+    syncFeatureCategory();
+    $("#green-shop-feature-switch",card).onchange=e=>{
+      saveSettings({...settings(),enabled:e.target.checked});
+      installNav();
+      injectFeatureCardRefresh();
+    };
+  }
   function injectFeatureCardRefresh(){ const old=$("#green-shop-feature-card");if(old)old.remove();injectFeatureCard(); if(!settings().enabled && $("[data-view-panel='shop-sales']")?.classList.contains("is-active")){const d=$("[data-view='dashboard']");d?.click();} }
-  function observeFeatures(){ const box=$("#feature-groups"); if(!box)return; new MutationObserver(()=>{ if(!$("#green-shop-feature-card")) setTimeout(injectFeatureCard,0); }).observe(box,{childList:true}); injectFeatureCard(); }
+  function observeFeatures(){
+    const box=$("#feature-groups");
+    if(!box)return;
+    new MutationObserver(()=>{
+      if(!$("#green-shop-feature-card"))setTimeout(injectFeatureCard,0);
+      else setTimeout(syncFeatureCategory,0);
+    }).observe(box,{childList:true});
+    injectFeatureCard();
+  }
   function boot(){ if(!/\/owner\.html$/.test(location.pathname))return;ensureCss();installNav();installPanel();observeFeatures();window.addEventListener("storage",e=>{if([SETTINGS_KEY,PRODUCTS_KEY,ORDERS_KEY].includes(e.key)){installNav();render();injectFeatureCardRefresh();}});window.addEventListener("dpro-green-shop-change",()=>{installNav();render();injectFeatureCardRefresh();}); const q=new URLSearchParams(location.search);if(q.get("view")==="shop-sales"){const app=$("#owner-app");const go=()=>{if(app&&!app.hidden)openShopView();};setTimeout(go,350);if(app)new MutationObserver(go).observe(app,{attributes:true,attributeFilter:["hidden"]});} }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
