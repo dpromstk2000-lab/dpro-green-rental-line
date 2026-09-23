@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "GREEN-STAFF-MANAGEMENT-R31.1-20260917";
+  const VERSION = "GREEN-STAFF-MANAGEMENT-R31.2-20260923";
   const Green = window.Green;
   const API = "/api/admin/staff";
   const ROLE_LABELS = {
@@ -73,16 +73,19 @@
       .green-staff-empty{padding:30px;text-align:center;color:#71837b}
       .green-staff-form-body{padding:22px 26px 28px}
       .green-staff-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-      .green-staff-grid label{display:grid;gap:7px;font-size:13px;font-weight:800}.green-staff-grid .full{grid-column:1/-1}
-      .green-staff-grid input,.green-staff-grid select{min-height:46px;padding:9px 11px;border:1px solid #c8d9d0;border-radius:10px;font:inherit;background:#fff}
+      .green-staff-grid>label{display:grid;gap:7px;font-size:13px;font-weight:800;min-width:0}.green-staff-grid .full{grid-column:1/-1}
+      .green-staff-grid>label>input:not([type="checkbox"]),.green-staff-grid>label>select{width:100%;box-sizing:border-box;min-height:46px;padding:9px 11px;border:1px solid #c8d9d0;border-radius:10px;font:inherit;background:#fff}
       .green-staff-role-box{grid-column:1/-1;border:1px solid #dbe7e1;border-radius:12px;padding:14px}
-      .green-staff-role-box>strong{display:block;margin-bottom:10px}.green-staff-role-checks{display:flex;gap:10px 16px;flex-wrap:wrap}
-      .green-staff-role-checks label{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}.green-staff-role-checks input{min-height:auto;flex:0 0 auto}
-      .green-staff-check{display:flex!important;align-items:center;gap:8px!important;white-space:nowrap}.green-staff-check input{min-height:auto;flex:0 0 auto}
+      .green-staff-role-box>strong{display:block;margin-bottom:10px}
+      .green-staff-role-checks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px}
+      .green-staff-role-checks label{display:flex;align-items:center;gap:9px;min-width:0;min-height:44px;padding:8px 10px;border:1px solid #e1ebe6;border-radius:10px;background:#fff;font-weight:700;line-height:1.35;white-space:nowrap;box-sizing:border-box}
+      .green-staff-role-checks input[type="checkbox"],.green-staff-check input[type="checkbox"]{appearance:auto;width:20px;height:20px;min-width:20px;min-height:20px;margin:0;padding:0;border:0;flex:0 0 20px}
+      .green-staff-check{display:flex!important;align-items:center;justify-content:flex-start;gap:10px!important;min-width:0;min-height:46px;padding:0 2px;white-space:normal;line-height:1.45}
       .green-staff-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
       .green-staff-error{margin:12px 0 0;color:#9a3d2c;font-weight:700}
       .green-staff-management-link{position:relative}
-      @media(max-width:700px){.green-staff-grid{grid-template-columns:1fr}.green-staff-grid .full,.green-staff-role-box{grid-column:1}.green-staff-body,.green-staff-form-body{padding:18px}.green-staff-head{padding:20px 18px}.green-staff-head h2{font-size:23px}}
+      @media(max-width:700px){.green-staff-grid{grid-template-columns:1fr}.green-staff-grid .full,.green-staff-role-box{grid-column:1}.green-staff-role-checks{grid-template-columns:repeat(2,minmax(0,1fr))}.green-staff-body,.green-staff-form-body{padding:18px}.green-staff-head{padding:20px 18px}.green-staff-head h2{font-size:23px}}
+      @media(max-width:460px){.green-staff-role-checks{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
