@@ -1,0 +1,60 @@
+name: DPRO GREEN Staff Role UI Fix R31.2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dpro-green-staff-role-ui-fix-r31-2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify FACT LOCK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object green-staff-management-r31.js)" = "e3dc4bafe77708abcff282057be9e3bf6c581491"
+          test "$(git hash-object config.js)" = "c8bac14a8d534cda07b594b8c0a8e4af478ad3fc"
+          echo "FACT LOCK OK"
+
+      - name: Apply checkbox and role layout fix
+        shell: bash
+        env:
+          DPRO_PATCH_B64: "ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpzdGFmZl9wYXRoID0gUGF0aCgiZ3JlZW4tc3RhZmYtbWFuYWdlbWVudC1yMzEuanMiKQpjb25maWdfcGF0aCA9IFBhdGgoImNvbmZpZy5qcyIpCgpzdGFmZiA9IHN0YWZmX3BhdGgucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCmNvbmZpZyA9IGNvbmZpZ19wYXRoLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQoKZGVmIHJlcGxhY2Vfb25jZSh0ZXh0LCBvbGQsIG5ldywgbGFiZWwpOgogICAgY291bnQgPSB0ZXh0LmNvdW50KG9sZCkKICAgIGlmIGNvdW50ICE9IDE6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIkFCT1JUOiB7bGFiZWx9IGV4cGVjdGVkIDEgbWF0Y2gsIGZvdW5kIHtjb3VudH0iKQogICAgcmV0dXJuIHRleHQucmVwbGFjZShvbGQsIG5ldywgMSkKCnN0YWZmID0gcmVwbGFjZV9vbmNlKAogICAgc3RhZmYsCiAgICAnICBjb25zdCBWRVJTSU9OID0gIkdSRUVOLVNUQUZGLU1BTkFHRU1FTlQtUjMxLjEtMjAyNjA5MTciOycsCiAgICAnICBjb25zdCBWRVJTSU9OID0gIkdSRUVOLVNUQUZGLU1BTkFHRU1FTlQtUjMxLjItMjAyNjA5MjMiOycsCiAgICAic3RhZmYgbWFuYWdlbWVudCB2ZXJzaW9uIgopCgpvbGRfY3NzID0gcicnJy5ncmVlbi1zdGFmZi1ncmlke2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyIDFmcjtnYXA6MTZweH0KICAgICAgLmdyZWVuLXN0YWZmLWdyaWQgbGFiZWx7ZGlzcGxheTpncmlkO2dhcDo3cHg7Zm9udC1zaXplOjEzcHg7Zm9udC13ZWlnaHQ6ODAwfS5ncmVlbi1zdGFmZi1ncmlkIC5mdWxse2dyaWQtY29sdW1uOjEvLTF9CiAgICAgIC5ncmVlbi1zdGFmZi1ncmlkIGlucHV0LC5ncmVlbi1zdGFmZi1ncmlkIHNlbGVjdHttaW4taGVpZ2h0OjQ2cHg7cGFkZGluZzo5cHggMTFweDtib3JkZXI6MXB4IHNvbGlkICNjOGQ5ZDA7Ym9yZGVyLXJhZGl1czoxMHB4O2ZvbnQ6aW5oZXJpdDtiYWNrZ3JvdW5kOiNmZmZ9CiAgICAgIC5ncmVlbi1zdGFmZi1yb2xlLWJveHtncmlkLWNvbHVtbjoxLy0xO2JvcmRlcjoxcHggc29saWQgI2RiZTdlMTtib3JkZXItcmFkaXVzOjEycHg7cGFkZGluZzoxNHB4fQogICAgICAuZ3JlZW4tc3RhZmYtcm9sZS1ib3g+c3Ryb25ne2Rpc3BsYXk6YmxvY2s7bWFyZ2luLWJvdHRvbToxMHB4fS5ncmVlbi1zdGFmZi1yb2xlLWNoZWNrc3tkaXNwbGF5OmZsZXg7Z2FwOjEwcHggMTZweDtmbGV4LXdyYXA6d3JhcH0KICAgICAgLmdyZWVuLXN0YWZmLXJvbGUtY2hlY2tzIGxhYmVse2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjZweDtmb250LXdlaWdodDo3MDA7d2hpdGUtc3BhY2U6bm93cmFwfS5ncmVlbi1zdGFmZi1yb2xlLWNoZWNrcyBpbnB1dHttaW4taGVpZ2h0OmF1dG87ZmxleDowIDAgYXV0b30KICAgICAgLmdyZWVuLXN0YWZmLWNoZWNre2Rpc3BsYXk6ZmxleCFpbXBvcnRhbnQ7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo4cHghaW1wb3J0YW50O3doaXRlLXNwYWNlOm5vd3JhcH0uZ3JlZW4tc3RhZmYtY2hlY2sgaW5wdXR7bWluLWhlaWdodDphdXRvO2ZsZXg6MCAwIGF1dG99CiAgICAgIC5ncmVlbi1zdGFmZi1hY3Rpb25ze2Rpc3BsYXk6ZmxleDtqdXN0aWZ5LWNvbnRlbnQ6ZmxleC1lbmQ7Z2FwOjEwcHg7bWFyZ2luLXRvcDoyMHB4fQogICAgICAuZ3JlZW4tc3RhZmYtZXJyb3J7bWFyZ2luOjEycHggMCAwO2NvbG9yOiM5YTNkMmM7Zm9udC13ZWlnaHQ6NzAwfQogICAgICAuZ3JlZW4tc3RhZmYtbWFuYWdlbWVudC1saW5re3Bvc2l0aW9uOnJlbGF0aXZlfQogICAgICBAbWVkaWEobWF4LXdpZHRoOjcwMHB4KXsuZ3JlZW4tc3RhZmYtZ3JpZHtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyfS5ncmVlbi1zdGFmZi1ncmlkIC5mdWxsLC5ncmVlbi1zdGFmZi1yb2xlLWJveHtncmlkLWNvbHVtbjoxfS5ncmVlbi1zdGFmZi1ib2R5LC5ncmVlbi1zdGFmZi1mb3JtLWJvZHl7cGFkZGluZzoxOHB4fS5ncmVlbi1zdGFmZi1oZWFke3BhZGRpbmc6MjBweCAxOHB4fS5ncmVlbi1zdGFmZi1oZWFkIGgye2ZvbnQtc2l6ZToyM3B4fX0nJycKCm5ld19jc3MgPSByJycnLmdyZWVuLXN0YWZmLWdyaWR7ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczoxZnIgMWZyO2dhcDoxNnB4fQogICAgICAuZ3JlZW4tc3RhZmYtZ3JpZD5sYWJlbHtkaXNwbGF5OmdyaWQ7Z2FwOjdweDtmb250LXNpemU6MTNweDtmb250LXdlaWdodDo4MDA7bWluLXdpZHRoOjB9LmdyZWVuLXN0YWZmLWdyaWQgLmZ1bGx7Z3JpZC1jb2x1bW46MS8tMX0KICAgICAgLmdyZWVuLXN0YWZmLWdyaWQ+bGFiZWw+aW5wdXQ6bm90KFt0eXBlPSJjaGVja2JveCJdKSwuZ3JlZW4tc3RhZmYtZ3JpZD5sYWJlbD5zZWxlY3R7d2lkdGg6MTAwJTtib3gtc2l6aW5nOmJvcmRlci1ib3g7bWluLWhlaWdodDo0NnB4O3BhZGRpbmc6OXB4IDExcHg7Ym9yZGVyOjFweCBzb2xpZCAjYzhkOWQwO2JvcmRlci1yYWRpdXM6MTBweDtmb250OmluaGVyaXQ7YmFja2dyb3VuZDojZmZmfQogICAgICAuZ3JlZW4tc3RhZmYtcm9sZS1ib3h7Z3JpZC1jb2x1bW46MS8tMTtib3JkZXI6MXB4IHNvbGlkICNkYmU3ZTE7Ym9yZGVyLXJhZGl1czoxMnB4O3BhZGRpbmc6MTRweH0KICAgICAgLmdyZWVuLXN0YWZmLXJvbGUtYm94PnN0cm9uZ3tkaXNwbGF5OmJsb2NrO21hcmdpbi1ib3R0b206MTBweH0KICAgICAgLmdyZWVuLXN0YWZmLXJvbGUtY2hlY2tze2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDMsbWlubWF4KDAsMWZyKSk7Z2FwOjEwcHggMTJweH0KICAgICAgLmdyZWVuLXN0YWZmLXJvbGUtY2hlY2tzIGxhYmVse2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjlweDttaW4td2lkdGg6MDttaW4taGVpZ2h0OjQ0cHg7cGFkZGluZzo4cHggMTBweDtib3JkZXI6MXB4IHNvbGlkICNlMWViZTY7Ym9yZGVyLXJhZGl1czoxMHB4O2JhY2tncm91bmQ6I2ZmZjtmb250LXdlaWdodDo3MDA7bGluZS1oZWlnaHQ6MS4zNTt3aGl0ZS1zcGFjZTpub3dyYXA7Ym94LXNpemluZzpib3JkZXItYm94fQogICAgICAuZ3JlZW4tc3RhZmYtcm9sZS1jaGVja3MgaW5wdXRbdHlwZT0iY2hlY2tib3giXSwuZ3JlZW4tc3RhZmYtY2hlY2sgaW5wdXRbdHlwZT0iY2hlY2tib3giXXthcHBlYXJhbmNlOmF1dG87d2lkdGg6MjBweDtoZWlnaHQ6MjBweDttaW4td2lkdGg6MjBweDttaW4taGVpZ2h0OjIwcHg7bWFyZ2luOjA7cGFkZGluZzowO2JvcmRlcjowO2ZsZXg6MCAwIDIwcHh9CiAgICAgIC5ncmVlbi1zdGFmZi1jaGVja3tkaXNwbGF5OmZsZXghaW1wb3J0YW50O2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6ZmxleC1zdGFydDtnYXA6MTBweCFpbXBvcnRhbnQ7bWluLXdpZHRoOjA7bWluLWhlaWdodDo0NnB4O3BhZGRpbmc6MCAycHg7d2hpdGUtc3BhY2U6bm9ybWFsO2xpbmUtaGVpZ2h0OjEuNDV9CiAgICAgIC5ncmVlbi1zdGFmZi1hY3Rpb25ze2Rpc3BsYXk6ZmxleDtqdXN0aWZ5LWNvbnRlbnQ6ZmxleC1lbmQ7Z2FwOjEwcHg7bWFyZ2luLXRvcDoyMHB4fQogICAgICAuZ3JlZW4tc3RhZmYtZXJyb3J7bWFyZ2luOjEycHggMCAwO2NvbG9yOiM5YTNkMmM7Zm9udC13ZWlnaHQ6NzAwfQogICAgICAuZ3JlZW4tc3RhZmYtbWFuYWdlbWVudC1saW5re3Bvc2l0aW9uOnJlbGF0aXZlfQogICAgICBAbWVkaWEobWF4LXdpZHRoOjcwMHB4KXsuZ3JlZW4tc3RhZmYtZ3JpZHtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyfS5ncmVlbi1zdGFmZi1ncmlkIC5mdWxsLC5ncmVlbi1zdGFmZi1yb2xlLWJveHtncmlkLWNvbHVtbjoxfS5ncmVlbi1zdGFmZi1yb2xlLWNoZWNrc3tncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDIsbWlubWF4KDAsMWZyKSl9LmdyZWVuLXN0YWZmLWJvZHksLmdyZWVuLXN0YWZmLWZvcm0tYm9keXtwYWRkaW5nOjE4cHh9LmdyZWVuLXN0YWZmLWhlYWR7cGFkZGluZzoyMHB4IDE4cHh9LmdyZWVuLXN0YWZmLWhlYWQgaDJ7Zm9udC1zaXplOjIzcHh9fQogICAgICBAbWVkaWEobWF4LXdpZHRoOjQ2MHB4KXsuZ3JlZW4tc3RhZmYtcm9sZS1jaGVja3N7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFmcn19JycnCgpzdGFmZiA9IHJlcGxhY2Vfb25jZShzdGFmZiwgb2xkX2NzcywgbmV3X2NzcywgInN0YWZmIGZvcm0gY2hlY2tib3ggY3NzIikKCmNvbmZpZyA9IHJlcGxhY2Vfb25jZSgKICAgIGNvbmZpZywKICAgICcgIGNvbnN0IFNUQUZGX01BTkFHRU1FTlRfVkVSU0lPTiA9ICJHUkVFTi1TVEFGRi1NQU5BR0VNRU5ULVIzMS4xLTIwMjYwOTE3IjsnLAogICAgJyAgY29uc3QgU1RBRkZfTUFOQUdFTUVOVF9WRVJTSU9OID0gIkdSRUVOLVNUQUZGLU1BTkFHRU1FTlQtUjMxLjItMjAyNjA5MjMiOycsCiAgICAic3RhZmYgbWFuYWdlbWVudCBsb2FkZXIgdmVyc2lvbiIKKQoKc3RhZmZfcGF0aC53cml0ZV90ZXh0KHN0YWZmLCBlbmNvZGluZz0idXRmLTgiKQpjb25maWdfcGF0aC53cml0ZV90ZXh0KGNvbmZpZywgZW5jb2Rpbmc9InV0Zi04IikK"
+        run: |
+          set -euo pipefail
+          printf '%s' "$DPRO_PATCH_B64" | base64 --decode > /tmp/dpro_green_staff_role_ui_fix.py
+          python /tmp/dpro_green_staff_role_ui_fix.py
+
+      - name: Verify files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check green-staff-management-r31.js
+          grep -F 'GREEN-STAFF-MANAGEMENT-R31.2-20260923' green-staff-management-r31.js
+          grep -F 'grid-template-columns:repeat(3,minmax(0,1fr))' green-staff-management-r31.js
+          grep -F 'input[type="checkbox"]' green-staff-management-r31.js
+          grep -F 'GREEN-STAFF-MANAGEMENT-R31.2-20260923' config.js
+          git diff --check
+
+      - name: Commit application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN Evergreen"
+          git config user.email "actions@users.noreply.github.com"
+          git add green-staff-management-r31.js config.js
+          git commit -m "Fix GREEN staff role checkbox layout"
+          git push origin HEAD:main
