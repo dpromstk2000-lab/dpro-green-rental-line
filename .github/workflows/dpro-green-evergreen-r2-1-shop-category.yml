@@ -1,0 +1,71 @@
+name: DPRO GREEN EVERGREEN R2.1 Shop Category Fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dpro-green-evergreen-r2-1-shop-category.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify R2 FACT LOCK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^ 2>/dev/null || true)" != ""
+          test "$(git hash-object owner.html)" = "3ea6a5f27e57b3b8f465a5eceaffe2b02cefed9c"
+          echo "FACT LOCK OK"
+
+      - name: Add shop category bridge
+        shell: bash
+        env:
+          SHOP_CATEGORY_JS_B64: "KCgpID0+IHsKICAidXNlIHN0cmljdCI7CgogIGNvbnN0IFZFUlNJT04gPSAiR1JFRU4tRVZFUkdSRUVOLVNIT1AtQ0FURUdPUlktUjIuMS0yMDI2MDkyMyI7CiAgY29uc3QgR1JPVVAgPSAi6LKp5aOy44O7U0hPUCI7CgogIGNvbnN0ICQgPSAoc2VsZWN0b3IsIHNjb3BlID0gZG9jdW1lbnQpID0+IHNjb3BlLnF1ZXJ5U2VsZWN0b3Ioc2VsZWN0b3IpOwogIGNvbnN0ICQkID0gKHNlbGVjdG9yLCBzY29wZSA9IGRvY3VtZW50KSA9PiBBcnJheS5mcm9tKHNjb3BlLnF1ZXJ5U2VsZWN0b3JBbGwoc2VsZWN0b3IpKTsKCiAgZnVuY3Rpb24gYWN0aXZhdGUoZ3JvdXApIHsKICAgICQkKCJbZGF0YS1mZWF0dXJlLWdyb3VwXSIpLmZvckVhY2goKHBhbmVsKSA9PiB7CiAgICAgIHBhbmVsLmhpZGRlbiA9IHBhbmVsLmRhdGFzZXQuZmVhdHVyZUdyb3VwICE9PSBncm91cDsKICAgIH0pOwoKICAgICQkKCJbZGF0YS1mZWF0dXJlLWNhdGVnb3J5XSIpLmZvckVhY2goKGJ1dHRvbikgPT4gewogICAgICBjb25zdCBhY3RpdmUgPSBidXR0b24uZGF0YXNldC5mZWF0dXJlQ2F0ZWdvcnkgPT09IGdyb3VwOwogICAgICBidXR0b24uY2xhc3NMaXN0LnRvZ2dsZSgiaXMtYWN0aXZlIiwgYWN0aXZlKTsKICAgICAgYnV0dG9uLnNldEF0dHJpYnV0ZSgiYXJpYS1jdXJyZW50IiwgYWN0aXZlID8gInRydWUiIDogImZhbHNlIik7CiAgICB9KTsKCiAgICBjb25zdCBzZWxlY3QgPSAkKCIjZmVhdHVyZS1jYXRlZ29yeS1zZWxlY3QiKTsKICAgIGlmIChzZWxlY3QgJiYgc2VsZWN0LnZhbHVlICE9PSBncm91cCkgc2VsZWN0LnZhbHVlID0gZ3JvdXA7CiAgfQoKICBmdW5jdGlvbiBzeW5jKCkgewogICAgY29uc3QgY2FyZCA9ICQoIiNncmVlbi1zaG9wLWZlYXR1cmUtY2FyZCIpOwogICAgY29uc3QgbmF2ID0gJCgiI2ZlYXR1cmUtY2F0ZWdvcnktbmF2Iik7CiAgICBjb25zdCBzZWxlY3QgPSAkKCIjZmVhdHVyZS1jYXRlZ29yeS1zZWxlY3QiKTsKICAgIGlmICghY2FyZCB8fCAhbmF2KSByZXR1cm47CgogICAgY2FyZC5kYXRhc2V0LmZlYXR1cmVHcm91cCA9IEdST1VQOwoKICAgIGxldCBidXR0b24gPSBuYXYucXVlcnlTZWxlY3RvcihgW2RhdGEtZmVhdHVyZS1jYXRlZ29yeT0iJHtHUk9VUH0iXWApOwogICAgaWYgKCFidXR0b24pIHsKICAgICAgYnV0dG9uID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgiYnV0dG9uIik7CiAgICAgIGJ1dHRvbi50eXBlID0gImJ1dHRvbiI7CiAgICAgIGJ1dHRvbi5kYXRhc2V0LmZlYXR1cmVDYXRlZ29yeSA9IEdST1VQOwogICAgICBidXR0b24udGV4dENvbnRlbnQgPSBHUk9VUDsKICAgICAgbmF2LnByZXBlbmQoYnV0dG9uKTsKICAgICAgYnV0dG9uLmFkZEV2ZW50TGlzdGVuZXIoImNsaWNrIiwgKCkgPT4gYWN0aXZhdGUoR1JPVVApKTsKICAgIH0KCiAgICBpZiAoc2VsZWN0ICYmICFBcnJheS5mcm9tKHNlbGVjdC5vcHRpb25zKS5zb21lKChvcHRpb24pID0+IG9wdGlvbi52YWx1ZSA9PT0gR1JPVVApKSB7CiAgICAgIHNlbGVjdC5hZGQobmV3IE9wdGlvbihHUk9VUCwgR1JPVVApLCAwKTsKICAgIH0KCiAgICBjb25zdCBhY3RpdmUgPQogICAgICBuYXYucXVlcnlTZWxlY3RvcigiW2RhdGEtZmVhdHVyZS1jYXRlZ29yeV0uaXMtYWN0aXZlIik/LmRhdGFzZXQuZmVhdHVyZUNhdGVnb3J5IHx8CiAgICAgIHNlbGVjdD8udmFsdWUgfHwKICAgICAgIiI7CgogICAgY2FyZC5oaWRkZW4gPSBhY3RpdmUgIT09IEdST1VQOwogIH0KCiAgZnVuY3Rpb24gYm9vdCgpIHsKICAgIGNvbnN0IGZlYXR1cmVWaWV3ID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcignW2RhdGEtdmlldy1wYW5lbD0iZmVhdHVyZXMiXScpOwogICAgaWYgKCFmZWF0dXJlVmlldykgcmV0dXJuOwoKICAgIGNvbnN0IG9ic2VydmVyID0gbmV3IE11dGF0aW9uT2JzZXJ2ZXIoKCkgPT4gcXVldWVNaWNyb3Rhc2soc3luYykpOwogICAgb2JzZXJ2ZXIub2JzZXJ2ZShmZWF0dXJlVmlldywgeyBjaGlsZExpc3Q6IHRydWUsIHN1YnRyZWU6IHRydWUgfSk7CgogICAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigKICAgICAgImNsaWNrIiwKICAgICAgKGV2ZW50KSA9PiB7CiAgICAgICAgaWYgKCFldmVudC50YXJnZXQuY2xvc2VzdD8uKCJbZGF0YS1mZWF0dXJlLWNhdGVnb3J5XSIpKSByZXR1cm47CiAgICAgICAgc2V0VGltZW91dChzeW5jLCAwKTsKICAgICAgfSwKICAgICAgdHJ1ZQogICAgKTsKCiAgICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKAogICAgICAiY2hhbmdlIiwKICAgICAgKGV2ZW50KSA9PiB7CiAgICAgICAgaWYgKGV2ZW50LnRhcmdldD8uaWQgIT09ICJmZWF0dXJlLWNhdGVnb3J5LXNlbGVjdCIpIHJldHVybjsKICAgICAgICBzZXRUaW1lb3V0KHN5bmMsIDApOwogICAgICB9LAogICAgICB0cnVlCiAgICApOwoKICAgIHN5bmMoKTsKICAgIGNvbnNvbGUuaW5mbyhgW0RQUk8gR1JFRU5dICR7VkVSU0lPTn0gYWN0aXZlYCk7CiAgfQoKICBpZiAoZG9jdW1lbnQucmVhZHlTdGF0ZSA9PT0gImxvYWRpbmciKSB7CiAgICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCJET01Db250ZW50TG9hZGVkIiwgYm9vdCwgeyBvbmNlOiB0cnVlIH0pOwogIH0gZWxzZSB7CiAgICBib290KCk7CiAgfQp9KSgpOw=="
+        run: |
+          set -euo pipefail
+          printf '%s' "$SHOP_CATEGORY_JS_B64" | base64 --decode > green-shop-category-r2.js
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("owner.html")
+          text = path.read_text(encoding="utf-8")
+          old = '<script src="feature-settings.js?v=GREEN-EVG-OWNER-R2.0-20260923"></script>'
+          new = old + '\n  <script src="green-shop-category-r2.js?v=GREEN-EVG-SHOP-CATEGORY-R2.1-20260923"></script>'
+          if new in text:
+              raise SystemExit("ABORT: shop category bridge already present")
+          if text.count(old) != 1:
+              raise SystemExit("ABORT: feature-settings script marker not found exactly once")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Verify files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check green-shop-category-r2.js
+          grep -F 'GREEN-EVERGREEN-SHOP-CATEGORY-R2.1-20260923' green-shop-category-r2.js
+          grep -F 'const GROUP = "販売・SHOP";' green-shop-category-r2.js
+          grep -F 'data-feature-group' green-shop-category-r2.js
+          grep -F 'green-shop-category-r2.js?v=GREEN-EVG-SHOP-CATEGORY-R2.1-20260923' owner.html
+          git diff --check
+
+      - name: Commit application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN Evergreen"
+          git config user.email "actions@users.noreply.github.com"
+          git add green-shop-category-r2.js owner.html
+          git commit -m "Align GREEN shop module with settings category UI"
+          git push origin HEAD:main
