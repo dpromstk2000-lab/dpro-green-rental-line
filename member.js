@@ -2,6 +2,8 @@
   "use strict";
   const { api, uploadPhoto, compressImage, uuid, setCsrfToken, formatDate, formatTime, statusLabel, toast, setBusy, renderError } = window.Green;
   const config = window.GREEN_CONFIG;
+  const query = new URLSearchParams(location.search);
+  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
   const loginPanel = document.querySelector("#login-panel");
   const portal = document.querySelector("#portal");
   const globalError = document.querySelector("#global-error");
@@ -17,6 +19,7 @@
       await enterPortal();
     } catch {
       loginPanel.hidden = false;
+      if (autoDemo) await demoLogin();
     }
   }
 

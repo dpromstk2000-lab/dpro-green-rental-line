@@ -240,7 +240,7 @@ textarea { resize: vertical; min-height: 130px; }
 .green12-public-announcements,.green12-member-announcements{width:min(1100px,calc(100% - 32px));margin:18px auto;display:grid;gap:10px}.green12-public-notice{padding:15px 18px;border:1px solid #b9d5c2;border-radius:14px;background:#edf7f0;color:#173d2b}.green12-public-notice.is-important{border-color:#e2b36d;background:#fff6e7;color:#65430d}.green12-public-notice strong{display:block;font-size:17px}.green12-public-notice p{margin:5px 0 0;line-height:1.75}.green12-public-notice small{display:block;margin-top:7px;opacity:.78}.green12-member-announcements{margin-top:0;margin-bottom:18px}
 
 
-/* GREEN KASUYA PUBLIC STORE SYNC R1 */
+/* GREEN FC PUBLIC STORE SYNC R1 */
 .public-store-info{
   margin:0 0 48px;
   padding:28px;
@@ -315,7 +315,7 @@ textarea { resize: vertical; min-height: 130px; }
 }
 
 
-/* GREEN KASUYA HOLIDAY SYNC R1 */
+/* GREEN FC HOLIDAY SYNC R1 */
 .green12-public-holidays{
   width:min(1100px,calc(100% - 32px));
   margin:18px auto 0;
