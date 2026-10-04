@@ -1,6 +1,7 @@
 (() => {
   "use strict";
 
+  const VERSION = "GREEN-FC-COMMON-SC-READONLY-R52-20261004";
   const $ = (selector) => document.querySelector(selector);
   const Green = window.Green;
   const config = window.GREEN_CONFIG;
@@ -63,9 +64,6 @@
   async function fetchSystemCheckResult() {
     const headers = new Headers();
 
-    // GREEN common stores the admin bearer token in sessionStorage.
-    // Keep cookie transport too, so this diagnostic call works with either
-    // currently supported session transport.
     try {
       const token = sessionStorage.getItem("green_admin_session_token");
       if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -84,10 +82,6 @@
       message: "システム検査のAPI応答を読み取れませんでした。",
     }));
 
-    // System Check is a diagnostic endpoint.
-    // The Worker intentionally returns HTTP 409 when one or more checks fail.
-    // The diagnostic data must still be rendered so the operator can see
-    // exactly what failed instead of only seeing a generic request error.
     if (payload && payload.data) return payload;
 
     const error = new Error(
@@ -122,6 +116,7 @@
       ["失敗", data.failed],
       ["警告", data.warnings],
     ];
+
     $("#check-summary").innerHTML = stats.map(([label, value]) =>
       `<div class="check-stat"><small>${label}</small><strong>${value}</strong></div>`
     ).join("");
@@ -137,32 +132,8 @@
     ).join("");
 
     $("#demo-result").textContent = data.demoPrepared
-      ? "デモ基本データは準備済みです。"
-      : "未準備です。下の操作で準備してください。";
-  }
-
-  async function prepare() {
-    if (!$("#demo-confirmed").checked || $("#demo-text").value.trim().toUpperCase() !== "DEMO") {
-      Green.toast("確認チェックと確認文字DEMOが必要です。", "error");
-      return;
-    }
-    if (!confirm("デモ事業所の基本データを準備します。実行しますか？")) return;
-
-    const button = $("#demo-prepare");
-    Green.setBusy(button, true, "準備中…");
-    try {
-      const response = await Green.api("/api/admin/demo/prepare", {
-        method: "POST",
-        json: { confirmed: true, confirmation: "DEMO" },
-      });
-      $("#demo-result").textContent = `準備完了：${JSON.stringify(response.data.counts || {})}`;
-      Green.toast("デモ基本データを準備しました。", "success");
-      await run();
-    } catch (error) {
-      Green.toast(error.message, "error");
-    } finally {
-      Green.setBusy(button, false);
-    }
+      ? "DEMO基本データ：準備済み（読み取り専用）"
+      : "DEMO基本データ：未準備（この画面からは変更できません）";
   }
 
   async function checkPages() {
@@ -176,6 +147,7 @@
       "config.js",
     ];
     const rows = [];
+
     for (const file of files) {
       try {
         const response = await fetch(file, { cache: "no-store" });
@@ -196,8 +168,8 @@
     $("#check-login-form").addEventListener("submit", login);
     $("#check-clear").addEventListener("click", () => $("#check-code").value = "");
     $("#check-rerun").addEventListener("click", run);
-    $("#demo-prepare").addEventListener("click", prepare);
     $("#check-logout").addEventListener("click", logout);
+    document.documentElement.dataset.greenSystemCheck = VERSION;
     restore();
   });
 })();
