@@ -291,3 +291,19 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
 })();
+
+/* DPRO GREEN DEMO FC COMMON R48 / activated 2026-10-04 */
+(() => {
+  "use strict";
+  const install = () => {
+    if (document.querySelector('script[data-green-demo-fc-common="r48"]')) return;
+    const s=document.createElement("script");
+    s.src="./green-fc-common-demo-r48.js?v=GREEN-DEMO-FC-COMMON-R48-20261004";
+    s.defer=true;
+    s.dataset.greenDemoFcCommon="r48";
+    document.head.appendChild(s);
+  };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+})();
+
