@@ -1,0 +1,135 @@
+name: DPRO GREEN DEMO FC Common Enable R49
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+
+      - name: Verify deployed DEMO Worker R49
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEALTH_URL="https://dpro-green-rental-line-api.dpromstk2000.workers.dev/api/health"
+          EXPECTED_VERSION="GREEN-DEMO-FC-COMMON-R49-ATLAS-R1-20261004"
+          EXPECTED_FACILITY="dpro_green_rental_demo"
+          for n in 1 2 3 4 5 6; do
+            if curl -fsS --connect-timeout 10 --max-time 20 "$HEALTH_URL" -o /tmp/green-health.json; then
+              break
+            fi
+            sleep 5
+          done
+          python - <<'PY2'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/green-health.json')
+          if not p.exists():
+              raise SystemExit('DEMO Worker health response was not retrieved')
+          data=json.loads(p.read_text())
+          expected='GREEN-DEMO-FC-COMMON-R49-ATLAS-R1-20261004'
+          if data.get('ok') is not True:
+              raise SystemExit(f'Worker health is not OK: {data}')
+          if data.get('version') != expected:
+              raise SystemExit(f'Worker version mismatch: {data.get("version")} != {expected}')
+          if data.get('facilityCode') != 'dpro_green_rental_demo':
+              raise SystemExit(f'Facility mismatch: {data.get("facilityCode")}')
+          if data.get('environment') != 'demo':
+              raise SystemExit(f'Environment mismatch: {data.get("environment")}')
+          print('Worker health PASS:', data.get('version'), data.get('facilityCode'), data.get('databaseVersion'))
+          PY2
+          curl -fsS --connect-timeout 10 --max-time 20 \
+            "https://dpro-green-rental-line-api.dpromstk2000.workers.dev/api/public/services" \
+            -o /tmp/green-services.json
+          python - <<'PY2'
+          import json
+          data=json.load(open('/tmp/green-services.json'))
+          if data.get('ok') is not True:
+              raise SystemExit(f'Public services API not OK: {data}')
+          print('Public services API PASS')
+          PY2
+
+      - name: Fetch locked production source
+        shell: bash
+        run: |
+          rm -rf /tmp/green-prod
+          git clone --quiet https://github.com/dpromstk2000-lab/dpro-cl-000001-green.git /tmp/green-prod
+          git -C /tmp/green-prod checkout --quiet 58af787c2e6c664722dc1c52a6495f76b2ac7258
+
+      - name: Copy remaining FC-common generic frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in             green-final-brushup-r1.js             green-owner-pot-model-dedupe-r1.js             green-member-report-date-r1.js             member.html             staff.html             styles.css
+          do
+            test -f "/tmp/green-prod/$f"
+            cp "/tmp/green-prod/$f" "$f"
+          done
+
+      - name: Write R49 capability loader
+        shell: python
+        env:
+          GREEN_FC_R49_B64: "KCgpID0+IHsKICAidXNlIHN0cmljdCI7CiAgY29uc3QgVkVSU0lPTiA9ICJHUkVFTi1ERU1PLUZDLUNPTU1PTi1SNDktMjAyNjEwMDQiOwogIGlmICh3aW5kb3cuX19EUFJPX0dSRUVOX0RFTU9fRkNfQ09NTU9OX18gPT09IFZFUlNJT04pIHJldHVybjsKICB3aW5kb3cuX19EUFJPX0dSRUVOX0RFTU9fRkNfQ09NTU9OX18gPSBWRVJTSU9OOwoKICBjb25zdCBDQVBBQklMSVRJRVMgPSBPYmplY3QuZnJlZXplKHsKICAgIGF0bGFzQ2F0YWxvZzogdHJ1ZSwKICAgIGF0bGFzSW1hZ2VXcml0ZTogdHJ1ZSwKICAgIHN0YWZmQXV0aFIxOiB0cnVlLAogICAgc2hvcFYzQmFja2VuZDogZmFsc2UsCiAgICBjb250YWN0U3RhYmxlUjM6IHRydWUsCiAgICBsaWZmUm91dGluZ1IyOiB0cnVlLAogICAgb3duZXJJZGxlNjA6IHRydWUsCiAgICBuYXRpdmVEYXRlVGltZTogdHJ1ZSwKICAgIHNpdGVDaGVja05hdGl2ZVRhYnM6IHRydWUsCiAgICB2aXNpdFJ1bGVSMzogdHJ1ZSwKICAgIGZpbmFsQnJ1c2h1cFIxOiB0cnVlLAogICAgcG90TW9kZWxEZWR1cGVSMTogdHJ1ZSwKICAgIG1lbWJlclJlcG9ydERhdGVSMTogdHJ1ZQogIH0pOwogIHdpbmRvdy5EUFJPX0dSRUVOX0RFTU9fRkNfQ09NTU9OID0gT2JqZWN0LmZyZWV6ZSh7IHZlcnNpb246IFZFUlNJT04sIGNhcGFiaWxpdGllczogQ0FQQUJJTElUSUVTIH0pOwoKICBmdW5jdGlvbiBoYXNTY3JpcHQoc3JjKSB7CiAgICByZXR1cm4gWy4uLmRvY3VtZW50LnNjcmlwdHNdLnNvbWUoKHMpID0+IHsKICAgICAgY29uc3QgdmFsdWUgPSBTdHJpbmcocy5nZXRBdHRyaWJ1dGUoInNyYyIpIHx8ICIiKS5zcGxpdCgiPyIpWzBdOwogICAgICByZXR1cm4gdmFsdWUgPT09IHNyYyB8fCB2YWx1ZS5lbmRzV2l0aChgLyR7c3JjfWApOwogICAgfSk7CiAgfQogIGZ1bmN0aW9uIGhhc0NzcyhocmVmKSB7CiAgICByZXR1cm4gWy4uLmRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJ2xpbmtbcmVsPSJzdHlsZXNoZWV0Il0nKV0uc29tZSgobCkgPT4gewogICAgICBjb25zdCB2YWx1ZSA9IFN0cmluZyhsLmdldEF0dHJpYnV0ZSgiaHJlZiIpIHx8ICIiKS5zcGxpdCgiPyIpWzBdOwogICAgICByZXR1cm4gdmFsdWUgPT09IGhyZWYgfHwgdmFsdWUuZW5kc1dpdGgoYC8ke2hyZWZ9YCk7CiAgICB9KTsKICB9CiAgZnVuY3Rpb24gYWRkSnMoa2V5LCBzcmMsIHZlcnNpb24gPSBWRVJTSU9OKSB7CiAgICBpZiAoZG9jdW1lbnQucXVlcnlTZWxlY3Rvcihgc2NyaXB0W2RhdGEtZ3JlZW4tZmMtY29tbW9uPSIke2tleX0iXWApIHx8IGhhc1NjcmlwdChzcmMpKSByZXR1cm47CiAgICBjb25zdCBzPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoInNjcmlwdCIpOwogICAgcy5zcmM9YCR7c3JjfT92PSR7ZW5jb2RlVVJJQ29tcG9uZW50KHZlcnNpb24pfWA7CiAgICBzLmRlZmVyPXRydWU7CiAgICBzLmRhdGFzZXQuZ3JlZW5GY0NvbW1vbj1rZXk7CiAgICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKHMpOwogIH0KICBmdW5jdGlvbiBhZGRDc3Moa2V5LCBocmVmLCB2ZXJzaW9uID0gVkVSU0lPTikgewogICAgaWYgKGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoYGxpbmtbZGF0YS1ncmVlbi1mYy1jb21tb249IiR7a2V5fSJdYCkgfHwgaGFzQ3NzKGhyZWYpKSByZXR1cm47CiAgICBjb25zdCBsPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoImxpbmsiKTsKICAgIGwucmVsPSJzdHlsZXNoZWV0IjsKICAgIGwuaHJlZj1gJHtocmVmfT92PSR7ZW5jb2RlVVJJQ29tcG9uZW50KHZlcnNpb24pfWA7CiAgICBsLmRhdGFzZXQuZ3JlZW5GY0NvbW1vbj1rZXk7CiAgICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKGwpOwogIH0KCiAgZnVuY3Rpb24gb3duZXIoKSB7CiAgICBhZGRKcygib3duZXItc3BlY2llcyIsImdyZWVuLW93bmVyLXNwZWNpZXMtbGlzdC1yMS5qcyIsIkdSRUVOLU9XTkVSLUFUTEFTLVNQRUNJRVMtTU9ERUxTLVIxLjItMjAyNjEwMDMiKTsKICAgIGFkZEpzKCJvd25lci1hdGxhcy1zdGF0dXMiLCJncmVlbi1vd25lci1hdGxhcy1zdGF0dXMtcjEuanMiLCJHUkVFTi1PV05FUi1BVExBUy1TVEFUVVMtUjEuMC0yMDI2MTAwMyIpOwogICAgYWRkSnMoIm93bmVyLXNlc3Npb24taWRsZTYwIiwiZ3JlZW4tb3duZXItc2Vzc2lvbi1pZGxlNjAtcjEuanMiLCJHUkVFTi1PV05FUi1TRVNTSU9OLUlETEU2MC1SMS4yLTIwMjYwOTMwIik7CiAgICBhZGRKcygicmV0dXJuLWxvY2F0aW9uIiwiZ3JlZW4tcmV0dXJuLWxvY2F0aW9uLWZpeC1yMS5qcyIsIkdSRUVOLVJFVFVSTi1MT0NBVElPTi1GSVgtUjEuMC0yMDI2MTAwMyIpOwogICAgYWRkSnMoImZpbmFsLWJydXNodXAiLCJncmVlbi1maW5hbC1icnVzaHVwLXIxLmpzIiwiR1JFRU4tRklOQUwtQlJVU0hVUC1SMS4xLTIwMjYxMDAzIik7CiAgICBhZGRKcygic2l0ZS1jaGVjay10YWJzIiwiZ3JlZW4tc2l0ZS1jaGVjay1uYXRpdmUtdGFicy1yMy5qcyIsIkdSRUVOLVNJVEUtQ0hFQ0stTkFUSVZFLVRBQlMtUjMuMC0yMDI2MDkyOSIpOwogICAgYWRkSnMoImRhdGUtcGlja2VyIiwiZ3JlZW4tZGF0ZS1waWNrZXItZml4LXIxLmpzIiwiR1JFRU4tREFURS1QSUNLRVItUjMuMS1OQVRJVkUtVEFCUy0yMDI2MDkyOSIpOwogICAgYWRkSnMoInBvdC1tb2RlbC1kZWR1cGUiLCJncmVlbi1vd25lci1wb3QtbW9kZWwtZGVkdXBlLXIxLmpzIiwiR1JFRU4tT1dORVItUE9ULU1PREVMLURFRFVQRS1SMS4wLTIwMjYxMDAxIik7CiAgICBhZGRKcygidmlzaXQtcnVsZSIsImdyZWVuLXZpc2l0LXJ1bGUtbW9udGhseS1jb3VudC1yMy5qcyIsIkdSRUVOLVZJU0lULVJVTEUtTU9OVEhMWS1DT1VOVC1SMy4wLTIwMjYxMDAxIik7CiAgICBhZGRKcygiZGF0ZXRpbWUiLCJncmVlbi1kYXRldGltZS1zdGFuZGFyZC1yMS5qcyIsIkdSRUVOLURBVEVUSU1FLVNUQU5EQVJELVIxLjMtQ1VTVE9NLVBJQ0tFUi0yMDI2MTAwMyIpOwogICAgYWRkSnMoImNvbnRhY3QtcHJpbWFyeS11aSIsImdyZWVuLWNvbnRhY3QtcHJpbWFyeS11aS1yMS5qcyIsIkdSRUVOLUNPTlRBQ1QtUFJJTUFSWS1VSS1SMS42LTIwMjYxMDAyIik7CiAgICBpZiAoQ0FQQUJJTElUSUVTLmF0bGFzSW1hZ2VXcml0ZSkgYWRkSnMoImF0bGFzLWltYWdlLW1hbmFnZXIiLCJncmVlbi1vd25lci1hdGxhcy1pbWFnZS1tYW5hZ2VyLXIxLmpzIiwiR1JFRU4tT1dORVItQVRMQVMtSU1BR0UtTUFOQUdFUi1SMS4wLTIwMjYxMDA0Iik7CiAgICBpZiAoQ0FQQUJJTElUSUVTLnN0YWZmQXV0aFIxKSBhZGRKcygic3RhZmYtYXV0aCIsImdyZWVuLXN0YWZmLWF1dGgtcjEuanMiLCJHUkVFTi1TVEFGRi1BVVRILU9XTkVSLVIxLjAtMjAyNjEwMDEiKTsKICB9CgogIGZ1bmN0aW9uIG1lbWJlcigpIHsKICAgIGFkZEpzKCJtZW1iZXItcmVwb3J0LWRhdGUiLCJncmVlbi1tZW1iZXItcmVwb3J0LWRhdGUtcjEuanMiLCJHUkVFTi1NRU1CRVItUkVQT1JULURBVEUtUjEuMC0yMDI2MTAwMSIpOwogICAgYWRkSnMoIm1lbWJlci1kYXRldGltZSIsImdyZWVuLWRhdGV0aW1lLXN0YW5kYXJkLXIxLmpzIiwiR1JFRU4tREFURVRJTUUtU1RBTkRBUkQtUjEuMy1DVVNUT00tUElDS0VSLTIwMjYxMDAzIik7CiAgICBpZiAoQ0FQQUJJTElUSUVTLmxpZmZSb3V0aW5nUjIpIGFkZEpzKCJsaWZmLXJvdXRlciIsImdyZWVuLWxpZmYtcmljaG1lbnUtcm91dGVyLXIyLmpzIiwiR1JFRU4tTElGRi1SSUNITUVOVS1ST1VURVItUjItMjAyNjA5MjciKTsKICB9CgogIGZ1bmN0aW9uIGNvbnRhY3QoKSB7CiAgICBhZGRDc3MoImNvbnRhY3Qtc3RhbmRhcmQtY3NzIiwiZ3JlZW4tY29udGFjdC1zdGFuZGFyZC1yMy5jc3MiLCJEUFJPLUNPTlRBQ1QtU1RBTkRBUkQtUjMuNC0yMDI2MDkyNyIpOwogICAgYWRkQ3NzKCJjb250YWN0LXplcm8tanVtcC1jc3MiLCJncmVlbi1jb250YWN0LXplcm8tanVtcC1yNC5jc3MiLCJEUFJPLUNPTlRBQ1QtWkVSTy1KVU1QLVI0LjEtMjAyNjA5MjciKTsKICAgIGFkZEpzKCJjb250YWN0LXN0YW5kYXJkLWpzIiwiZ3JlZW4tY29udGFjdC1zdGFuZGFyZC1yMy5qcyIsIkRQUk8tQ09OVEFDVC1TVEFOREFSRC1SMy40LTIwMjYwOTI3Iik7CiAgICBhZGRKcygiY29udGFjdC16ZXJvLWp1bXAtanMiLCJncmVlbi1jb250YWN0LXplcm8tanVtcC1yNC5qcyIsIkRQUk8tQ09OVEFDVC1aRVJPLUpVTVAtUjQuMS0yMDI2MDkyNyIpOwogICAgYWRkSnMoImNvbnRhY3Qtc2VuZC1jb25maXJtIiwiZ3JlZW4tY29udGFjdC1zZW5kLWNvbmZpcm0tcjEuanMiLCJEUFJPLUNPTlRBQ1QtU0VORC1DT05GSVJNLVIxLTIwMjYwOTI3Iik7CiAgICBhZGRKcygiY29udGFjdC1tYW51YWwtcmVmcmVzaCIsImdyZWVuLWNvbnRhY3QtbWFudWFsLXJlZnJlc2gtcmVhZC1yMS5qcyIsIkRQUk8tQ09OVEFDVC1NQU5VQUwtUkVGUkVTSC1SRUFELVIxLTIwMjYxMDAyIik7CiAgfQoKICBmdW5jdGlvbiBib290KCkgewogICAgY29uc3QgcD1sb2NhdGlvbi5wYXRobmFtZTsKICAgIGlmICgvXC9vd25lclwuaHRtbCQvLnRlc3QocCkpIG93bmVyKCk7CiAgICBpZiAoL1wvbWVtYmVyXC5odG1sJC8udGVzdChwKSkgbWVtYmVyKCk7CiAgICBpZiAoL1wvY29udGFjdC1ncmVlblwuaHRtbCQvLnRlc3QocCkpIGNvbnRhY3QoKTsKICAgIGRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5kYXRhc2V0LmdyZWVuRGVtb0ZjQ29tbW9uID0gVkVSU0lPTjsKICB9CiAgaWYgKGRvY3VtZW50LnJlYWR5U3RhdGUgPT09ICJsb2FkaW5nIikgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigiRE9NQ29udGVudExvYWRlZCIsYm9vdCx7b25jZTp0cnVlfSk7CiAgZWxzZSBib290KCk7Cn0pKCk7"
+        run: |
+          import os, base64
+          from pathlib import Path
+          Path("green-fc-common-demo-r49.js").write_bytes(base64.b64decode(os.environ["GREEN_FC_R49_B64"]))
+
+      - name: Activate R49 loader and retire R48 activation
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path("config.js")
+          s=p.read_text()
+          old="green-fc-common-demo-r48.js?v=GREEN-DEMO-FC-COMMON-R48-20261004"
+          new="green-fc-common-demo-r49.js?v=GREEN-DEMO-FC-COMMON-R49-20261004"
+          if new not in s:
+              if old not in s:
+                  raise SystemExit("R48 loader activation not found in config.js")
+              s=s.replace(old,new)
+          p.write_text(s)
+
+      - name: FC safety guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="green-fc-common-demo-r49.js green-final-brushup-r1.js green-owner-pot-model-dedupe-r1.js green-member-report-date-r1.js member.html staff.html styles.css"
+          if grep -nE 'cl_000001_green|2011750460-EpN149VY|dpro-cl-000001-green-(core|shop|line)|グリーン・ポケット福岡粕屋店|粕屋店' $files; then
+            echo "Kasuya-specific identifier detected. Abort."
+            exit 1
+          fi
+          grep -q 'FACILITY_CODE: "dpro_green_rental_demo"' config.js
+          grep -q 'dpro-green-rental-line-api.dpromstk2000.workers.dev' config.js
+          grep -q 'atlasImageWrite: true' green-fc-common-demo-r49.js
+          grep -q 'staffAuthR1: true' green-fc-common-demo-r49.js
+          grep -q 'shopV3Backend: false' green-fc-common-demo-r49.js
+
+      - name: Validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check config.js
+          node --check green-fc-common-demo-r49.js
+          node --check green-final-brushup-r1.js
+          node --check green-owner-pot-model-dedupe-r1.js
+          node --check green-member-report-date-r1.js
+          test "$(find . -maxdepth 1 -type f -name 'atlas-*.png' | wc -l | tr -d ' ')" -eq 96
+
+      - name: Commit R49 FC-common enablement
+        shell: bash
+        run: |
+          if git diff --quiet && test -z "$(git ls-files --others --exclude-standard)"; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config.js green-fc-common-demo-r49.js green-final-brushup-r1.js green-owner-pot-model-dedupe-r1.js green-member-report-date-r1.js member.html staff.html styles.css
+          git commit -m "Enable GREEN DEMO FC common R49 capabilities"
+          git push
