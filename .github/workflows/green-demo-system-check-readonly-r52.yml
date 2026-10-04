@@ -1,0 +1,128 @@
+name: DPRO GREEN DEMO System Check ReadOnly R52
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify current FC common baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 10 --max-time 20 \
+            "https://dpro-green-rental-line-api.dpromstk2000.workers.dev/api/health" \
+            -o /tmp/green-health.json
+          python - <<'PY'
+          import json
+          data=json.load(open('/tmp/green-health.json'))
+          assert data.get('ok') is True, data
+          assert data.get('version') == 'GREEN-DEMO-FC-COMMON-R49-ATLAS-R1-20261004', data
+          assert data.get('facilityCode') == 'dpro_green_rental_demo', data
+          assert data.get('environment') == 'demo', data
+          print('R49 baseline PASS')
+          PY
+          grep -q 'FACILITY_CODE: "dpro_green_rental_demo"' config.js
+          grep -q 'green-fc-common-demo-r49.js' config.js
+          test "$(find . -maxdepth 1 -type f -name 'atlas-*.png' | wc -l)" -eq 96
+
+      - name: Make system-check read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('system-check.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('営業前デモ準備・システム確認','営業前システム確認')
+          s=s.replace('GREEN-10 INTERNAL','GREEN FC COMMON / READ ONLY')
+          pattern=r'<article class="check-panel demo-panel">.*?<div id="page-checks"></div></article>'
+          replacement=(
+              '<article class="check-panel demo-panel">'
+              '<h2>DEMO状態・公開画面確認</h2>'
+              '<p>この画面は読み取り専用です。DEMOデータの作成・更新は行いません。</p>'
+              '<p id="demo-result"></p>'
+              '<hr><h3>公開画面・必須ファイル</h3><div id="page-checks"></div>'
+              '</article>'
+          )
+          s2,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
+          if n != 1:
+              raise SystemExit(f'system-check.html demo panel replace count={n}')
+          p.write_text(s2,encoding='utf-8')
+
+          p=Path('system-check.js')
+          s=p.read_text(encoding='utf-8')
+
+          old='''    $("#demo-result").textContent = data.demoPrepared
+              ? "デモ基本データは準備済みです。"
+              : "未準備です。下の操作で準備してください.";'''
+          new='''    $("#demo-result").textContent = data.demoPrepared
+              ? "DEMO基本データ：準備済み（読み取り専用）"
+              : "DEMO基本データ：未準備（この画面からは変更できません）";'''
+          if old not in s:
+              raise SystemExit('system-check.js demo result block not found')
+          s=s.replace(old,new,1)
+
+          pat=r'\n  async function prepare\(\) \{.*?\n  \}\n\n  async function checkPages\(\)'
+          repl='\n  async function checkPages()'
+          s2,n=re.subn(pat,repl,s,count=1,flags=re.S)
+          if n != 1:
+              raise SystemExit(f'system-check.js prepare function remove count={n}')
+          s=s2
+          s=s.replace('    $("#demo-prepare").addEventListener("click", prepare);\n','')
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Read-only static checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check system-check.js
+          grep -q 'GREEN FC COMMON / READ ONLY' system-check.html
+          grep -q 'この画面は読み取り専用です' system-check.html
+          grep -q 'DEMO基本データ：準備済み（読み取り専用）' system-check.js
+          ! grep -q '/api/admin/demo/prepare' system-check.js
+          ! grep -q 'demo-prepare' system-check.html
+          ! grep -q 'demo-prepare' system-check.js
+          ! grep -q 'demo-confirmed' system-check.html
+          ! grep -q 'demo-text' system-check.html
+          ! grep -q '下の操作で準備してください' system-check.js
+          grep -q 'check-rerun' system-check.html
+          grep -q 'checkPages' system-check.js
+          echo "system-check read-only PASS"
+
+      - name: FC common guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -n \
+            --exclude-dir=.git \
+            --exclude='*.yml' \
+            --exclude='*.yaml' \
+            -E 'cl_000001_green|2011750460-EpN149VY|dpro-cl-000001-green-(core|shop|line)' . \
+            >/tmp/forbidden.txt || { cat /tmp/forbidden.txt; exit 1; }
+
+      - name: Commit read-only system check
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN DEMO R52"
+          git config user.email "actions@users.noreply.github.com"
+          git add system-check.html system-check.js
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Make GREEN DEMO system check read-only R52"
+          git push origin HEAD:main
