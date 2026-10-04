@@ -1,0 +1,100 @@
+name: DPRO GREEN DEMO FC Common Sync R48
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+
+      - name: Fetch locked R48 sources
+        shell: bash
+        run: |
+          rm -rf /tmp/green-prod /tmp/green-web
+          git clone --quiet https://github.com/dpromstk2000-lab/dpro-cl-000001-green.git /tmp/green-prod
+          git -C /tmp/green-prod checkout --quiet 58af787c2e6c664722dc1c52a6495f76b2ac7258
+          git clone --quiet https://github.com/dpromstk2000-lab/dpro-green-website.git /tmp/green-web
+          git -C /tmp/green-web checkout --quiet 9b333cb7f41d64f6901ac96c5e08a4bda8aa2e14
+
+      - name: Copy FC-common frontend modules only
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in green-owner-species-list-r1.js green-owner-atlas-status-r1.js green-owner-atlas-image-manager-r1.js green-owner-session-idle60-r1.js green-return-location-fix-r1.js green-site-check-native-tabs-r3.js green-date-picker-fix-r1.js green-visit-rule-monthly-count-r3.js green-staff-auth-r1.js green-contact-primary-ui-r1.js green-datetime-standard-r1.js green-liff-richmenu-router-r2.js green-contact-standard-r3.css green-contact-standard-r3.js green-contact-zero-jump-r4.css green-contact-zero-jump-r4.js green-contact-send-confirm-r1.js green-contact-manual-refresh-read-r1.js; do
+            test -f "/tmp/green-prod/$f"
+            cp "/tmp/green-prod/$f" "$f"
+          done
+
+      - name: Copy all 96 Atlas images
+        shell: bash
+        run: |
+          set -euo pipefail
+          find /tmp/green-web -maxdepth 1 -type f -name 'atlas-*.png' -exec cp {} . \;
+          find /tmp/green-prod -maxdepth 1 -type f -name 'atlas-*.png' -exec cp {} . \;
+          count=$(find . -maxdepth 1 -type f -name 'atlas-*.png' | wc -l | tr -d ' ')
+          echo "Atlas image count=$count"
+          test "$count" -eq 96
+
+      - name: Write FC-common DEMO loader
+        shell: python
+        env:
+          GREEN_FC_LOADER_B64: "KCgpID0+IHsKICAidXNlIHN0cmljdCI7CiAgY29uc3QgVkVSU0lPTiA9ICJHUkVFTi1ERU1PLUZDLUNPTU1PTi1SNDgtMjAyNjEwMDQiOwogIGlmICh3aW5kb3cuX19EUFJPX0dSRUVOX0RFTU9fRkNfQ09NTU9OX18gPT09IFZFUlNJT04pIHJldHVybjsKICB3aW5kb3cuX19EUFJPX0dSRUVOX0RFTU9fRkNfQ09NTU9OX18gPSBWRVJTSU9OOwoKICBjb25zdCBDQVBBQklMSVRJRVMgPSBPYmplY3QuZnJlZXplKHsKICAgIGF0bGFzQ2F0YWxvZzogdHJ1ZSwKICAgIGF0bGFzSW1hZ2VXcml0ZTogZmFsc2UsCiAgICBzdGFmZkF1dGhSMTogZmFsc2UsCiAgICBzaG9wVjNCYWNrZW5kOiBmYWxzZSwKICAgIGNvbnRhY3RTdGFibGVSMzogdHJ1ZSwKICAgIGxpZmZSb3V0aW5nUjI6IHRydWUsCiAgICBvd25lcklkbGU2MDogdHJ1ZSwKICAgIG5hdGl2ZURhdGVUaW1lOiB0cnVlLAogICAgc2l0ZUNoZWNrTmF0aXZlVGFiczogdHJ1ZSwKICAgIHZpc2l0UnVsZVIzOiB0cnVlCiAgfSk7CiAgd2luZG93LkRQUk9fR1JFRU5fREVNT19GQ19DT01NT04gPSBPYmplY3QuZnJlZXplKHsgdmVyc2lvbjogVkVSU0lPTiwgY2FwYWJpbGl0aWVzOiBDQVBBQklMSVRJRVMgfSk7CgogIGZ1bmN0aW9uIGFkZEpzKGtleSwgc3JjLCB2ZXJzaW9uID0gVkVSU0lPTikgewogICAgaWYgKGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoYHNjcmlwdFtkYXRhLWdyZWVuLWZjLWNvbW1vbj0iJHtrZXl9Il1gKSkgcmV0dXJuOwogICAgY29uc3Qgcz1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCJzY3JpcHQiKTsKICAgIHMuc3JjPWAke3NyY30/dj0ke2VuY29kZVVSSUNvbXBvbmVudCh2ZXJzaW9uKX1gOwogICAgcy5kZWZlcj10cnVlOwogICAgcy5kYXRhc2V0LmdyZWVuRmNDb21tb249a2V5OwogICAgZG9jdW1lbnQuaGVhZC5hcHBlbmRDaGlsZChzKTsKICB9CiAgZnVuY3Rpb24gYWRkQ3NzKGtleSwgaHJlZiwgdmVyc2lvbiA9IFZFUlNJT04pIHsKICAgIGlmIChkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBsaW5rW2RhdGEtZ3JlZW4tZmMtY29tbW9uPSIke2tleX0iXWApKSByZXR1cm47CiAgICBjb25zdCBsPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoImxpbmsiKTsKICAgIGwucmVsPSJzdHlsZXNoZWV0IjsKICAgIGwuaHJlZj1gJHtocmVmfT92PSR7ZW5jb2RlVVJJQ29tcG9uZW50KHZlcnNpb24pfWA7CiAgICBsLmRhdGFzZXQuZ3JlZW5GY0NvbW1vbj1rZXk7CiAgICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKGwpOwogIH0KCiAgZnVuY3Rpb24gb3duZXIoKSB7CiAgICBhZGRKcygib3duZXItc3BlY2llcyIsImdyZWVuLW93bmVyLXNwZWNpZXMtbGlzdC1yMS5qcyIsIkdSRUVOLU9XTkVSLUFUTEFTLVNQRUNJRVMtTU9ERUxTLVIxLjItMjAyNjEwMDMiKTsKICAgIGFkZEpzKCJvd25lci1hdGxhcy1zdGF0dXMiLCJncmVlbi1vd25lci1hdGxhcy1zdGF0dXMtcjEuanMiLCJHUkVFTi1PV05FUi1BVExBUy1TVEFUVVMtUjEuMC0yMDI2MTAwMyIpOwogICAgYWRkSnMoIm93bmVyLXNlc3Npb24taWRsZTYwIiwiZ3JlZW4tb3duZXItc2Vzc2lvbi1pZGxlNjAtcjEuanMiLCJHUkVFTi1PV05FUi1TRVNTSU9OLUlETEU2MC1SMS4yLTIwMjYwOTMwIik7CiAgICBhZGRKcygicmV0dXJuLWxvY2F0aW9uIiwiZ3JlZW4tcmV0dXJuLWxvY2F0aW9uLWZpeC1yMS5qcyIsIkdSRUVOLVJFVFVSTi1MT0NBVElPTi1GSVgtUjEuMC0yMDI2MTAwMyIpOwogICAgYWRkSnMoInNpdGUtY2hlY2stdGFicyIsImdyZWVuLXNpdGUtY2hlY2stbmF0aXZlLXRhYnMtcjMuanMiLCJHUkVFTi1TSVRFLUNIRUNLLU5BVElWRS1UQUJTLVIzLjAtMjAyNjA5MjkiKTsKICAgIGFkZEpzKCJkYXRlLXBpY2tlciIsImdyZWVuLWRhdGUtcGlja2VyLWZpeC1yMS5qcyIsIkdSRUVOLURBVEUtUElDS0VSLVIzLjEtTkFUSVZFLVRBQlMtMjAyNjA5MjkiKTsKICAgIGFkZEpzKCJ2aXNpdC1ydWxlIiwiZ3JlZW4tdmlzaXQtcnVsZS1tb250aGx5LWNvdW50LXIzLmpzIiwiR1JFRU4tVklTSVQtUlVMRS1NT05USExZLUNPVU5ULVIzLjAtMjAyNjEwMDEiKTsKICAgIGFkZEpzKCJkYXRldGltZSIsImdyZWVuLWRhdGV0aW1lLXN0YW5kYXJkLXIxLmpzIiwiR1JFRU4tREFURVRJTUUtU1RBTkRBUkQtUjEuMy1DVVNUT00tUElDS0VSLTIwMjYxMDAzIik7CiAgICBhZGRKcygiY29udGFjdC1wcmltYXJ5LXVpIiwiZ3JlZW4tY29udGFjdC1wcmltYXJ5LXVpLXIxLmpzIiwiR1JFRU4tQ09OVEFDVC1QUklNQVJZLVVJLVIxLjYtMjAyNjEwMDIiKTsKICAgIGlmIChDQVBBQklMSVRJRVMuYXRsYXNJbWFnZVdyaXRlKSBhZGRKcygiYXRsYXMtaW1hZ2UtbWFuYWdlciIsImdyZWVuLW93bmVyLWF0bGFzLWltYWdlLW1hbmFnZXItcjEuanMiLCJHUkVFTi1PV05FUi1BVExBUy1JTUFHRS1NQU5BR0VSLVIxLjAtMjAyNjEwMDQiKTsKICAgIGlmIChDQVBBQklMSVRJRVMuc3RhZmZBdXRoUjEpIGFkZEpzKCJzdGFmZi1hdXRoIiwiZ3JlZW4tc3RhZmYtYXV0aC1yMS5qcyIsIkdSRUVOLVNUQUZGLUFVVEgtT1dORVItUjEuMC0yMDI2MTAwMSIpOwogIH0KCiAgZnVuY3Rpb24gbWVtYmVyKCkgewogICAgYWRkSnMoIm1lbWJlci1kYXRldGltZSIsImdyZWVuLWRhdGV0aW1lLXN0YW5kYXJkLXIxLmpzIiwiR1JFRU4tREFURVRJTUUtU1RBTkRBUkQtUjEuMy1DVVNUT00tUElDS0VSLTIwMjYxMDAzIik7CiAgICBpZiAoQ0FQQUJJTElUSUVTLmxpZmZSb3V0aW5nUjIpIGFkZEpzKCJsaWZmLXJvdXRlciIsImdyZWVuLWxpZmYtcmljaG1lbnUtcm91dGVyLXIyLmpzIiwiR1JFRU4tTElGRi1SSUNITUVOVS1ST1VURVItUjItMjAyNjA5MjciKTsKICB9CgogIGZ1bmN0aW9uIGNvbnRhY3QoKSB7CiAgICBhZGRDc3MoImNvbnRhY3Qtc3RhbmRhcmQtY3NzIiwiZ3JlZW4tY29udGFjdC1zdGFuZGFyZC1yMy5jc3MiLCJEUFJPLUNPTlRBQ1QtU1RBTkRBUkQtUjMuNC0yMDI2MDkyNyIpOwogICAgYWRkQ3NzKCJjb250YWN0LXplcm8tanVtcC1jc3MiLCJncmVlbi1jb250YWN0LXplcm8tanVtcC1yNC5jc3MiLCJEUFJPLUNPTlRBQ1QtWkVSTy1KVU1QLVI0LjEtMjAyNjA5MjciKTsKICAgIGFkZEpzKCJjb250YWN0LXN0YW5kYXJkLWpzIiwiZ3JlZW4tY29udGFjdC1zdGFuZGFyZC1yMy5qcyIsIkRQUk8tQ09OVEFDVC1TVEFOREFSRC1SMy40LTIwMjYwOTI3Iik7CiAgICBhZGRKcygiY29udGFjdC16ZXJvLWp1bXAtanMiLCJncmVlbi1jb250YWN0LXplcm8tanVtcC1yNC5qcyIsIkRQUk8tQ09OVEFDVC1aRVJPLUpVTVAtUjQuMS0yMDI2MDkyNyIpOwogICAgYWRkSnMoImNvbnRhY3Qtc2VuZC1jb25maXJtIiwiZ3JlZW4tY29udGFjdC1zZW5kLWNvbmZpcm0tcjEuanMiLCJEUFJPLUNPTlRBQ1QtU0VORC1DT05GSVJNLVIxLTIwMjYwOTI3Iik7CiAgICBhZGRKcygiY29udGFjdC1tYW51YWwtcmVmcmVzaCIsImdyZWVuLWNvbnRhY3QtbWFudWFsLXJlZnJlc2gtcmVhZC1yMS5qcyIsIkRQUk8tQ09OVEFDVC1NQU5VQUwtUkVGUkVTSC1SRUFELVIxLTIwMjYxMDAyIik7CiAgfQoKICBmdW5jdGlvbiBib290KCkgewogICAgY29uc3QgcD1sb2NhdGlvbi5wYXRobmFtZTsKICAgIGlmICgvXC9vd25lclwuaHRtbCQvLnRlc3QocCkpIG93bmVyKCk7CiAgICBpZiAoL1wvbWVtYmVyXC5odG1sJC8udGVzdChwKSkgbWVtYmVyKCk7CiAgICBpZiAoL1wvY29udGFjdC1ncmVlblwuaHRtbCQvLnRlc3QocCkpIGNvbnRhY3QoKTsKICAgIGRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5kYXRhc2V0LmdyZWVuRGVtb0ZjQ29tbW9uID0gVkVSU0lPTjsKICB9CiAgaWYgKGRvY3VtZW50LnJlYWR5U3RhdGUgPT09ICJsb2FkaW5nIikgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigiRE9NQ29udGVudExvYWRlZCIsYm9vdCx7b25jZTp0cnVlfSk7CiAgZWxzZSBib290KCk7Cn0pKCk7Cg=="
+        run: |
+          import os, base64
+          from pathlib import Path
+          Path("green-fc-common-demo-r48.js").write_bytes(base64.b64decode(os.environ["GREEN_FC_LOADER_B64"]))
+
+      - name: Activate loader without overwriting DEMO config
+        shell: python
+        env:
+          GREEN_FC_ACTIVATION_B64: "CgovKiBEUFJPIEdSRUVOIERFTU8gRkMgQ09NTU9OIFI0OCAvIGFjdGl2YXRlZCAyMDI2LTEwLTA0ICovCigoKSA9PiB7CiAgInVzZSBzdHJpY3QiOwogIGNvbnN0IGluc3RhbGwgPSAoKSA9PiB7CiAgICBpZiAoZG9jdW1lbnQucXVlcnlTZWxlY3Rvcignc2NyaXB0W2RhdGEtZ3JlZW4tZGVtby1mYy1jb21tb249InI0OCJdJykpIHJldHVybjsKICAgIGNvbnN0IHM9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7CiAgICBzLnNyYz0iLi9ncmVlbi1mYy1jb21tb24tZGVtby1yNDguanM/dj1HUkVFTi1ERU1PLUZDLUNPTU1PTi1SNDgtMjAyNjEwMDQiOwogICAgcy5kZWZlcj10cnVlOwogICAgcy5kYXRhc2V0LmdyZWVuRGVtb0ZjQ29tbW9uPSJyNDgiOwogICAgZG9jdW1lbnQuaGVhZC5hcHBlbmRDaGlsZChzKTsKICB9OwogIGlmKGRvY3VtZW50LnJlYWR5U3RhdGU9PT0ibG9hZGluZyIpIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoIkRPTUNvbnRlbnRMb2FkZWQiLGluc3RhbGwse29uY2U6dHJ1ZX0pOwogIGVsc2UgaW5zdGFsbCgpOwp9KSgpOwo="
+        run: |
+          import os, base64
+          from pathlib import Path
+          path=Path("config.js")
+          text=path.read_text()
+          marker="DPRO GREEN DEMO FC COMMON R48 / activated 2026-10-04"
+          if marker not in text:
+              loader=base64.b64decode(os.environ["GREEN_FC_ACTIVATION_B64"]).decode()
+              path.write_text(text.rstrip()+loader+"\n")
+
+      - name: Guard against Kasuya-specific IDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="green-fc-common-demo-r48.js green-owner-species-list-r1.js green-owner-atlas-status-r1.js green-owner-atlas-image-manager-r1.js green-owner-session-idle60-r1.js green-return-location-fix-r1.js green-site-check-native-tabs-r3.js green-date-picker-fix-r1.js green-visit-rule-monthly-count-r3.js green-staff-auth-r1.js green-contact-primary-ui-r1.js green-datetime-standard-r1.js green-liff-richmenu-router-r2.js green-contact-standard-r3.css green-contact-standard-r3.js green-contact-zero-jump-r4.css green-contact-zero-jump-r4.js green-contact-send-confirm-r1.js green-contact-manual-refresh-read-r1.js"
+          if grep -nE 'cl_000001_green|2011750460-EpN149VY|dpro-cl-000001-green-(core|shop|line)' $files; then
+            echo "Kasuya-specific identifier detected. Abort."
+            exit 1
+          fi
+          grep -q 'FACILITY_CODE: "dpro_green_rental_demo"' config.js
+          grep -q 'dpro-green-rental-line-api.dpromstk2000.workers.dev' config.js
+
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check config.js
+          node --check green-fc-common-demo-r48.js
+          for f in green-owner-species-list-r1.js green-owner-atlas-status-r1.js green-owner-atlas-image-manager-r1.js green-owner-session-idle60-r1.js green-return-location-fix-r1.js green-site-check-native-tabs-r3.js green-date-picker-fix-r1.js green-visit-rule-monthly-count-r3.js green-staff-auth-r1.js green-contact-primary-ui-r1.js green-datetime-standard-r1.js green-liff-richmenu-router-r2.js green-contact-standard-r3.css green-contact-standard-r3.js green-contact-zero-jump-r4.css green-contact-zero-jump-r4.js green-contact-send-confirm-r1.js green-contact-manual-refresh-read-r1.js; do
+            case "$f" in *.js) node --check "$f" ;; esac
+          done
+
+      - name: Commit FC-common sync
+        shell: bash
+        run: |
+          if git diff --quiet && test -z "$(git ls-files --others --exclude-standard)"; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config.js green-fc-common-demo-r48.js green-owner-species-list-r1.js green-owner-atlas-status-r1.js green-owner-atlas-image-manager-r1.js green-owner-session-idle60-r1.js green-return-location-fix-r1.js green-site-check-native-tabs-r3.js green-date-picker-fix-r1.js green-visit-rule-monthly-count-r3.js green-staff-auth-r1.js green-contact-primary-ui-r1.js green-datetime-standard-r1.js green-liff-richmenu-router-r2.js green-contact-standard-r3.css green-contact-standard-r3.js green-contact-zero-jump-r4.css green-contact-zero-jump-r4.js green-contact-send-confirm-r1.js green-contact-manual-refresh-read-r1.js atlas-*.png
+          git commit -m "Sync GREEN DEMO to FC common R48 frontend"
+          git push
