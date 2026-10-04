@@ -1,0 +1,156 @@
+name: DPRO GREEN DEMO Final Polish R50 FIX
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify R49 Worker and DEMO guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 10 --max-time 20 \
+            "https://dpro-green-rental-line-api.dpromstk2000.workers.dev/api/health" \
+            -o /tmp/green-health.json
+          python - <<'PY'
+          import json
+          data=json.load(open('/tmp/green-health.json'))
+          assert data.get('ok') is True, data
+          assert data.get('version') == 'GREEN-DEMO-FC-COMMON-R49-ATLAS-R1-20261004', data
+          assert data.get('facilityCode') == 'dpro_green_rental_demo', data
+          assert data.get('environment') == 'demo', data
+          print('Worker R49 PASS')
+          PY
+          grep -q 'FACILITY_CODE: "dpro_green_rental_demo"' config.js
+          grep -q 'dpro-green-rental-line-api.dpromstk2000.workers.dev' config.js
+          grep -q 'green-fc-common-demo-r49.js' config.js
+          test "$(find . -maxdepth 1 -type f -name 'atlas-*.png' | wc -l)" -eq 96
+
+      - name: Restore DEMO member experience
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('member.html')
+          s=p.read_text(encoding='utf-8')
+
+          replacements = [
+            (
+              '<p class="eyebrow">LOGIN</p><h2>マイページを開く</h2><p class="label-note">本番ではLINE本人確認後、確認済みのお客様情報だけを表示します。</p>',
+              '<p class="eyebrow">DEMO LOGIN</p><h2>デモマイページを開く</h2><p class="label-note">FC共通DEMOのサンプルデータで、お客様側の実際の操作イメージを確認できます。</p>'
+            ),
+            (
+              '<button id="line-login" class="button button-primary" type="button">LINEで本人確認して開く</button>',
+              '<button id="line-login" class="button button-secondary" type="button" hidden>LINEで本人確認して開く</button>'
+            ),
+            (
+              '<div class="divider" hidden>デモ確認</div>',
+              '<div class="divider">デモ確認</div>'
+            ),
+            (
+              '<label hidden>デモ顧客番号<input id="demo-customer-number" value="DEMO-GREEN-001" autocomplete="off"></label>',
+              '<label>デモ顧客番号<input id="demo-customer-number" value="DEMO-GREEN-001" autocomplete="off"></label>'
+            ),
+            (
+              '<button id="demo-login" class="button button-secondary" type="button" hidden>デモマイページを開く</button>',
+              '<button id="demo-login" class="button button-primary" type="button">デモマイページを開く</button>'
+            ),
+            (
+              '<p class="label-note" hidden>デモではサンプルのお客様情報を使って、実際の操作イメージをご確認いただけます。</p>',
+              '<p class="label-note">本番導入時は各FC店舗のLINE公式・LIFF設定へ切り替えます。</p>'
+            ),
+          ]
+          for old,new in replacements:
+              if old in s:
+                  s=s.replace(old,new,1)
+          required_html = [
+              'DEMO LOGIN',
+              'FC共通DEMO',
+              'id="demo-login" class="button button-primary" type="button"',
+              '<label>デモ顧客番号<input id="demo-customer-number"',
+          ]
+          missing=[x for x in required_html if x not in s]
+          if missing:
+              raise SystemExit(f'member.html DEMO polish incomplete: {missing}')
+          if 'id="demo-login" class="button button-secondary" type="button" hidden' in s:
+              raise SystemExit('member.html demo button still hidden')
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('member.js')
+          s=p.read_text(encoding='utf-8')
+          if 'const autoDemo = query.get("demo") === "1"' not in s:
+              old='  const config = window.GREEN_CONFIG;'
+              new='  const config = window.GREEN_CONFIG;\n  const query = new URLSearchParams(location.search);\n  const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";'
+              if old not in s:
+                  raise SystemExit('member.js config line not found')
+              s=s.replace(old,new,1)
+          if 'if (autoDemo) await demoLogin();' not in s:
+              old='    } catch {\n      loginPanel.hidden = false;\n    }'
+              new='    } catch {\n      loginPanel.hidden = false;\n      if (autoDemo) await demoLogin();\n    }'
+              if old not in s:
+                  raise SystemExit('member.js initialize catch block not found')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('staff.html')
+          s=p.read_text(encoding='utf-8')
+          old='<p class="staff-login-note">ログインコードは管理者から案内されたものを入力してください。</p>'
+          new='<p class="staff-login-note">DEMO確認はURL末尾に <strong>?demo=1</strong> を付けると自動ログインできます。本番では管理者から案内されたログインコードを使用します。</p>'
+          if old in s:
+              s=s.replace(old,new,1)
+          if '?demo=1' not in s:
+              raise SystemExit('staff.html DEMO guidance not applied')
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('styles.css')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('GREEN KASUYA PUBLIC STORE SYNC R1','GREEN FC PUBLIC STORE SYNC R1')
+          s=s.replace('GREEN KASUYA HOLIDAY SYNC R1','GREEN FC HOLIDAY SYNC R1')
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Static final checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check member.js
+          node --check green-fc-common-demo-r49.js
+          grep -q 'const autoDemo = query.get("demo") === "1"' member.js
+          grep -q 'if (autoDemo) await demoLogin();' member.js
+          grep -q 'id="demo-login" class="button button-primary" type="button"' member.html
+          ! grep -q 'id="demo-login".*hidden' member.html
+          grep -q 'FC共通DEMO' member.html
+          grep -q '\?demo=1' staff.html
+          ! grep -R -n \
+            --exclude-dir=.git \
+            --exclude='*.yml' \
+            --exclude='*.yaml' \
+            -E 'cl_000001_green|2011750460-EpN149VY|dpro-cl-000001-green-(core|shop|line)' . \
+            >/tmp/forbidden.txt || { cat /tmp/forbidden.txt; exit 1; }
+          echo "Final static checks PASS"
+
+      - name: Commit DEMO final polish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN DEMO R50 FIX"
+          git config user.email "actions@users.noreply.github.com"
+          git add member.html member.js staff.html styles.css
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Fix GREEN DEMO final polish R50"
+          git push origin HEAD:main
