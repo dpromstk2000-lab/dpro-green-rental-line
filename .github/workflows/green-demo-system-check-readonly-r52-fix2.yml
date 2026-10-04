@@ -1,0 +1,88 @@
+name: DPRO GREEN DEMO System Check ReadOnly R52 FIX2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify current FC common baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 10 --max-time 20 \
+            "https://dpro-green-rental-line-api.dpromstk2000.workers.dev/api/health" \
+            -o /tmp/green-health.json
+          python - <<'PY'
+          import json
+          data=json.load(open('/tmp/green-health.json'))
+          assert data.get('ok') is True, data
+          assert data.get('version') == 'GREEN-DEMO-FC-COMMON-R49-ATLAS-R1-20261004', data
+          assert data.get('facilityCode') == 'dpro_green_rental_demo', data
+          assert data.get('environment') == 'demo', data
+          print('R49 baseline PASS')
+          PY
+          grep -q 'FACILITY_CODE: "dpro_green_rental_demo"' config.js
+          grep -q 'green-fc-common-demo-r49.js' config.js
+          test "$(find . -maxdepth 1 -type f -name 'atlas-*.png' | wc -l)" -eq 96
+
+      - name: Write exact read-only system-check files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImphIj4KPGhlYWQ+CiAgPG1ldGEgY2hhcnNldD0idXRmLTgiPgogIDxtZXRhIG5hbWU9InZpZXdwb3J0IiBjb250ZW50PSJ3aWR0aD1kZXZpY2Utd2lkdGgsaW5pdGlhbC1zY2FsZT0xIj4KICA8bWV0YSBuYW1lPSJyb2JvdHMiIGNvbnRlbnQ9Im5vaW5kZXgsbm9mb2xsb3ciPgogIDxtZXRhIG5hbWU9InRoZW1lLWNvbG9yIiBjb250ZW50PSIjMTIzODJkIj4KICA8dGl0bGU+5Za25qWt5YmN44K344K544OG44Og56K66KqNPC90aXRsZT4KICA8bGluayByZWw9InN0eWxlc2hlZXQiIGhyZWY9InN0eWxlcy5jc3MiPgogIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgaHJlZj0ic3lzdGVtLWNoZWNrLmNzcyI+CjwvaGVhZD4KPGJvZHk+CiAgPHNlY3Rpb24gY2xhc3M9ImNoZWNrLWxvZ2luIiBpZD0iY2hlY2stbG9naW4iPgogICAgPGZvcm0gaWQ9ImNoZWNrLWxvZ2luLWZvcm0iPgogICAgICA8cCBjbGFzcz0iZXllYnJvdyI+SU5URVJOQUwgU1lTVEVNIENIRUNLPC9wPgogICAgICA8aDE+5Za25qWt5YmN44K344K544OG44Og56K66KqNPC9oMT4KICAgICAgPHA+44GT44Gu55S76Z2i44Gv6ZaL55m644O75Za25qWt56K66KqN55So44Gu6Kqt44G/5Y+W44KK5bCC55So55S76Z2i44Gn44GZ44CC44OH44O844K/44Gu5L2c5oiQ44O75pu05paw44Gv6KGM44GE44G+44Gb44KT44CCPC9wPgogICAgICA8bGFiZWw+5LqL5qWt5omA44Kz44O844OJPGlucHV0IGlkPSJjaGVjay1mYWNpbGl0eSIgcmVxdWlyZWQ+PC9sYWJlbD4KICAgICAgPGxhYmVsPueuoeeQhuOCs+ODvOODiQogICAgICAgIDxzcGFuIGNsYXNzPSJjaGVjay1jb2RlIj4KICAgICAgICAgIDxpbnB1dCBpZD0iY2hlY2stY29kZSIgdHlwZT0icGFzc3dvcmQiIGlucHV0bW9kZT0ibnVtZXJpYyIgcmVxdWlyZWQ+CiAgICAgICAgICA8YnV0dG9uIHR5cGU9ImJ1dHRvbiIgaWQ9ImNoZWNrLWNsZWFyIj7liYrpmaQ8L2J1dHRvbj4KICAgICAgICA8L3NwYW4+CiAgICAgIDwvbGFiZWw+CiAgICAgIDxwIGlkPSJjaGVjay1sb2dpbi1lcnJvciIgY2xhc3M9ImZvcm0tZXJyb3IiIGhpZGRlbj48L3A+CiAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBidG4tLXByaW1hcnkiIHR5cGU9InN1Ym1pdCI+44Ot44Kw44Kk44OzPC9idXR0b24+CiAgICA8L2Zvcm0+CiAgPC9zZWN0aW9uPgoKICA8bWFpbiBjbGFzcz0iY2hlY2stYXBwIiBpZD0iY2hlY2stYXBwIiBoaWRkZW4+CiAgICA8aGVhZGVyPgogICAgICA8ZGl2PgogICAgICAgIDxwIGNsYXNzPSJleWVicm93Ij5HUkVFTiBGQyBDT01NT04gLyBSRUFEIE9OTFk8L3A+CiAgICAgICAgPGgxPuWWtualreWJjeOCt+OCueODhuODoOeiuuiqjTwvaDE+CiAgICAgIDwvZGl2PgogICAgICA8ZGl2PgogICAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBidG4tLXNlY29uZGFyeSIgaWQ9ImNoZWNrLXJlcnVuIj7kuIDmi6zlho3mpJzmn7s8L2J1dHRvbj4KICAgICAgICA8YnV0dG9uIGNsYXNzPSJidG4gYnRuLS1zZWNvbmRhcnkiIGlkPSJjaGVjay1sb2dvdXQiPuODreOCsOOCouOCpuODiDwvYnV0dG9uPgogICAgICA8L2Rpdj4KICAgIDwvaGVhZGVyPgoKICAgIDxzZWN0aW9uIGNsYXNzPSJjaGVjay1zdW1tYXJ5IiBpZD0iY2hlY2stc3VtbWFyeSI+PC9zZWN0aW9uPgoKICAgIDxzZWN0aW9uIGNsYXNzPSJjaGVjay1sYXlvdXQiPgogICAgICA8YXJ0aWNsZSBjbGFzcz0iY2hlY2stcGFuZWwiPgogICAgICAgIDxoMj7kuIDmi6zmpJzmn7s8L2gyPgogICAgICAgIDxkaXYgaWQ9ImNoZWNrLWxpc3QiPjwvZGl2PgogICAgICA8L2FydGljbGU+CgogICAgICA8YXJ0aWNsZSBjbGFzcz0iY2hlY2stcGFuZWwgZGVtby1wYW5lbCI+CiAgICAgICAgPGgyPkRFTU/nirbmhYvjg7vlhazplovnlLvpnaLnorroqo08L2gyPgogICAgICAgIDxwPuOBk+OBrueUu+mdouOBr+iqreOBv+WPluOCiuWwgueUqOOBp+OBmeOAgkRFTU/jg4fjg7zjgr/jga7kvZzmiJDjg7vmm7TmlrDjga/ooYzjgYTjgb7jgZvjgpPjgII8L3A+CiAgICAgICAgPHAgaWQ9ImRlbW8tcmVzdWx0Ij48L3A+CiAgICAgICAgPGhyPgogICAgICAgIDxoMz7lhazplovnlLvpnaLjg7vlv4XpoIjjg5XjgqHjgqTjg6s8L2gzPgogICAgICAgIDxkaXYgaWQ9InBhZ2UtY2hlY2tzIj48L2Rpdj4KICAgICAgPC9hcnRpY2xlPgogICAgPC9zZWN0aW9uPgogIDwvbWFpbj4KCiAgPGRpdiBpZD0idG9hc3QtcmVnaW9uIiBjbGFzcz0idG9hc3QtcmVnaW9uIiBhcmlhLWxpdmU9InBvbGl0ZSI+PC9kaXY+CiAgPHNjcmlwdCBzcmM9ImNvbmZpZy5qcyI+PC9zY3JpcHQ+CiAgPHNjcmlwdCBzcmM9ImdyZWVuLWNvbW1vbi5qcyI+PC9zY3JpcHQ+CiAgPHNjcmlwdCBzcmM9InN5c3RlbS1jaGVjay5qcz92PUdSRUVOLUZDLUNPTU1PTi1TQy1SRUFET05MWS1SNTItMjAyNjEwMDQiPjwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRtbD4K' | base64 --decode > system-check.html
+          echo 'KCgpID0+IHsKICAidXNlIHN0cmljdCI7CgogIGNvbnN0IFZFUlNJT04gPSAiR1JFRU4tRkMtQ09NTU9OLVNDLVJFQURPTkxZLVI1Mi0yMDI2MTAwNCI7CiAgY29uc3QgJCA9IChzZWxlY3RvcikgPT4gZG9jdW1lbnQucXVlcnlTZWxlY3RvcihzZWxlY3Rvcik7CiAgY29uc3QgR3JlZW4gPSB3aW5kb3cuR3JlZW47CiAgY29uc3QgY29uZmlnID0gd2luZG93LkdSRUVOX0NPTkZJRzsKICBjb25zdCBlc2MgPSAodmFsdWUpID0+IFN0cmluZyh2YWx1ZSA/PyAiIikucmVwbGFjZSgvWyY8PiInXS9nLCAoY2hhcikgPT4gKHsKICAgICImIjogIiZhbXA7IiwKICAgICI8IjogIiZsdDsiLAogICAgIj4iOiAiJmd0OyIsCiAgICAnIic6ICImcXVvdDsiLAogICAgIiciOiAiJiMzOTsiLAogIH1bY2hhcl0pKTsKCiAgYXN5bmMgZnVuY3Rpb24gcmVzdG9yZSgpIHsKICAgIHRyeSB7CiAgICAgIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgR3JlZW4uYXBpKCIvYXBpL2FkbWluL3Nlc3Npb24iKTsKICAgICAgR3JlZW4uc2V0Q3NyZlRva2VuKHJlc3BvbnNlLmRhdGEuY3NyZlRva2VuKTsKICAgICAgc2hvdygpOwogICAgICBhd2FpdCBydW4oKTsKICAgIH0gY2F0Y2ggewogICAgICBsb2dpblZpZXcoKTsKICAgIH0KICB9CgogIGZ1bmN0aW9uIGxvZ2luVmlldygpIHsKICAgICQoIiNjaGVjay1sb2dpbiIpLmhpZGRlbiA9IGZhbHNlOwogICAgJCgiI2NoZWNrLWFwcCIpLmhpZGRlbiA9IHRydWU7CiAgfQoKICBmdW5jdGlvbiBzaG93KCkgewogICAgJCgiI2NoZWNrLWxvZ2luIikuaGlkZGVuID0gdHJ1ZTsKICAgICQoIiNjaGVjay1hcHAiKS5oaWRkZW4gPSBmYWxzZTsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIGxvZ2luKGV2ZW50KSB7CiAgICBldmVudC5wcmV2ZW50RGVmYXVsdCgpOwogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBHcmVlbi5hcGkoIi9hcGkvYWRtaW4vbG9naW4iLCB7CiAgICAgICAgbWV0aG9kOiAiUE9TVCIsCiAgICAgICAganNvbjogewogICAgICAgICAgZmFjaWxpdHlDb2RlOiAkKCIjY2hlY2stZmFjaWxpdHkiKS52YWx1ZSwKICAgICAgICAgIGNvZGU6ICQoIiNjaGVjay1jb2RlIikudmFsdWUsCiAgICAgICAgfSwKICAgICAgfSk7CiAgICAgIEdyZWVuLnNldENzcmZUb2tlbihyZXNwb25zZS5kYXRhLmNzcmZUb2tlbik7CiAgICAgICQoIiNjaGVjay1jb2RlIikudmFsdWUgPSAiIjsKICAgICAgc2hvdygpOwogICAgICBhd2FpdCBydW4oKTsKICAgIH0gY2F0Y2ggKGVycm9yKSB7CiAgICAgIEdyZWVuLnJlbmRlckVycm9yKCQoIiNjaGVjay1sb2dpbi1lcnJvciIpLCBlcnJvcik7CiAgICB9CiAgfQoKICBhc3luYyBmdW5jdGlvbiBsb2dvdXQoKSB7CiAgICB0cnkgewogICAgICBhd2FpdCBHcmVlbi5hcGkoIi9hcGkvYWRtaW4vbG9nb3V0IiwgeyBtZXRob2Q6ICJQT1NUIiwganNvbjoge30gfSk7CiAgICB9IGNhdGNoIHt9CiAgICBHcmVlbi5zZXRDc3JmVG9rZW4obnVsbCk7CiAgICBsb2dpblZpZXcoKTsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIGZldGNoU3lzdGVtQ2hlY2tSZXN1bHQoKSB7CiAgICBjb25zdCBoZWFkZXJzID0gbmV3IEhlYWRlcnMoKTsKCiAgICB0cnkgewogICAgICBjb25zdCB0b2tlbiA9IHNlc3Npb25TdG9yYWdlLmdldEl0ZW0oImdyZWVuX2FkbWluX3Nlc3Npb25fdG9rZW4iKTsKICAgICAgaWYgKHRva2VuKSBoZWFkZXJzLnNldCgiQXV0aG9yaXphdGlvbiIsIGBCZWFyZXIgJHt0b2tlbn1gKTsKICAgIH0gY2F0Y2gge30KCiAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKGAke2NvbmZpZy5BUElfQkFTRX0vYXBpL2FkbWluL3N5c3RlbS1jaGVja2AsIHsKICAgICAgbWV0aG9kOiAiR0VUIiwKICAgICAgY3JlZGVudGlhbHM6ICJpbmNsdWRlIiwKICAgICAgaGVhZGVycywKICAgICAgY2FjaGU6ICJuby1zdG9yZSIsCiAgICB9KTsKCiAgICBjb25zdCBwYXlsb2FkID0gYXdhaXQgcmVzcG9uc2UuanNvbigpLmNhdGNoKCgpID0+ICh7CiAgICAgIG9rOiBmYWxzZSwKICAgICAgZXJyb3I6ICJpbnZhbGlkX3Jlc3BvbnNlIiwKICAgICAgbWVzc2FnZTogIuOCt+OCueODhuODoOaknOafu+OBrkFQSeW/nOetlOOCkuiqreOBv+WPluOCjOOBvuOBm+OCk+OBp+OBl+OBn+OAgiIsCiAgICB9KSk7CgogICAgaWYgKHBheWxvYWQgJiYgcGF5bG9hZC5kYXRhKSByZXR1cm4gcGF5bG9hZDsKCiAgICBjb25zdCBlcnJvciA9IG5ldyBFcnJvcigKICAgICAgcGF5bG9hZD8ubWVzc2FnZSB8fCBg44K344K544OG44Og5qSc5p+744KS5Y+W5b6X44Gn44GN44G+44Gb44KT44Gn44GX44Gf77yISFRUUCAke3Jlc3BvbnNlLnN0YXR1c33vvInjgIJgCiAgICApOwogICAgZXJyb3IuY29kZSA9IHBheWxvYWQ/LmVycm9yIHx8ICJzeXN0ZW1fY2hlY2tfcmVxdWVzdF9mYWlsZWQiOwogICAgZXJyb3IucmVxdWVzdElkID0gcGF5bG9hZD8ucmVxdWVzdElkIHx8IG51bGw7CiAgICB0aHJvdyBlcnJvcjsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIHJ1bigpIHsKICAgIHRyeSB7CiAgICAgIGNvbnN0IHBheWxvYWQgPSBhd2FpdCBmZXRjaFN5c3RlbUNoZWNrUmVzdWx0KCk7CiAgICAgIGlmIChwYXlsb2FkLmRhdGEpIHsKICAgICAgICByZW5kZXIocGF5bG9hZC5kYXRhKTsKICAgICAgfSBlbHNlIHsKICAgICAgICB0aHJvdyBuZXcgRXJyb3IocGF5bG9hZC5tZXNzYWdlIHx8ICLmpJzmn7vntZDmnpzjgpLlj5blvpfjgafjgY3jgb7jgZvjgpPjgIIiKTsKICAgICAgfQogICAgICBhd2FpdCBjaGVja1BhZ2VzKCk7CiAgICB9IGNhdGNoIChlcnJvcikgewogICAgICBHcmVlbi50b2FzdCgKICAgICAgICBgJHtlcnJvci5tZXNzYWdlfSR7ZXJyb3IucmVxdWVzdElkID8gYO+8iOeiuuiqjeeVquWPt++8miR7ZXJyb3IucmVxdWVzdElkfe+8iWAgOiAiIn1gLAogICAgICAgICJlcnJvciIKICAgICAgKTsKICAgIH0KICB9CgogIGZ1bmN0aW9uIHJlbmRlcihkYXRhKSB7CiAgICBjb25zdCBzdGF0cyA9IFsKICAgICAgWyLmpJzmn7vku7bmlbAiLCBkYXRhLnRvdGFsXSwKICAgICAgWyLlkIjmoLwiLCBkYXRhLnBhc3NlZF0sCiAgICAgIFsi5aSx5pWXIiwgZGF0YS5mYWlsZWRdLAogICAgICBbIuitpuWRiiIsIGRhdGEud2FybmluZ3NdLAogICAgXTsKCiAgICAkKCIjY2hlY2stc3VtbWFyeSIpLmlubmVySFRNTCA9IHN0YXRzLm1hcCgoW2xhYmVsLCB2YWx1ZV0pID0+CiAgICAgIGA8ZGl2IGNsYXNzPSJjaGVjay1zdGF0Ij48c21hbGw+JHtsYWJlbH08L3NtYWxsPjxzdHJvbmc+JHt2YWx1ZX08L3N0cm9uZz48L2Rpdj5gCiAgICApLmpvaW4oIiIpOwoKICAgICQoIiNjaGVjay1saXN0IikuaW5uZXJIVE1MID0gKGRhdGEuY2hlY2tzIHx8IFtdKS5tYXAoKGl0ZW0pID0+CiAgICAgIGA8ZGl2IGNsYXNzPSJjaGVjay1pdGVtIiBkYXRhLXN0YXR1cz0iJHtpdGVtLnN0YXR1c30iPmAgKwogICAgICAgIGA8c3BhbiBjbGFzcz0iY2hlY2stZG90Ij48L3NwYW4+YCArCiAgICAgICAgYDxkaXY+PHN0cm9uZz4ke2VzYyhpdGVtLmxhYmVsKX08L3N0cm9uZz5gICsKICAgICAgICAgIGAke2l0ZW0uZGV0YWlsICE9PSBudWxsID8gYDxzbWFsbD4ke2VzYyh0eXBlb2YgaXRlbS5kZXRhaWwgPT09ICJzdHJpbmciID8gaXRlbS5kZXRhaWwgOiBKU09OLnN0cmluZ2lmeShpdGVtLmRldGFpbCkpfTwvc21hbGw+YCA6ICIifWAgKwogICAgICAgIGA8L2Rpdj5gICsKICAgICAgICBgPHNwYW4gY2xhc3M9ImNoZWNrLWJhZGdlIj4ke2l0ZW0uc3RhdHVzID09PSAicGFzcyIgPyAi5ZCI5qC8IiA6IGl0ZW0uc3RhdHVzID09PSAiZmFpbCIgPyAi5aSx5pWXIiA6ICLorablkYoifTwvc3Bhbj5gICsKICAgICAgYDwvZGl2PmAKICAgICkuam9pbigiIik7CgogICAgJCgiI2RlbW8tcmVzdWx0IikudGV4dENvbnRlbnQgPSBkYXRhLmRlbW9QcmVwYXJlZAogICAgICA/ICJERU1P5Z+65pys44OH44O844K/77ya5rqW5YKZ5riI44G/77yI6Kqt44G/5Y+W44KK5bCC55So77yJIgogICAgICA6ICJERU1P5Z+65pys44OH44O844K/77ya5pyq5rqW5YKZ77yI44GT44Gu55S76Z2i44GL44KJ44Gv5aSJ5pu044Gn44GN44G+44Gb44KT77yJIjsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIGNoZWNrUGFnZXMoKSB7CiAgICBjb25zdCBmaWxlcyA9IFsKICAgICAgImluZGV4Lmh0bWwiLAogICAgICAibWVtYmVyLmh0bWwiLAogICAgICAib3duZXIuaHRtbCIsCiAgICAgICJvd25lci1pcGFkLmh0bWwiLAogICAgICAic3RhZmYuaHRtbCIsCiAgICAgICJzeXN0ZW0tY2hlY2suaHRtbCIsCiAgICAgICJjb25maWcuanMiLAogICAgXTsKICAgIGNvbnN0IHJvd3MgPSBbXTsKCiAgICBmb3IgKGNvbnN0IGZpbGUgb2YgZmlsZXMpIHsKICAgICAgdHJ5IHsKICAgICAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKGZpbGUsIHsgY2FjaGU6ICJuby1zdG9yZSIgfSk7CiAgICAgICAgcm93cy5wdXNoKFtmaWxlLCByZXNwb25zZS5vaywgcmVzcG9uc2Uuc3RhdHVzXSk7CiAgICAgIH0gY2F0Y2ggewogICAgICAgIHJvd3MucHVzaChbZmlsZSwgZmFsc2UsICLpgJrkv6HlpLHmlZciXSk7CiAgICAgIH0KICAgIH0KCiAgICAkKCIjcGFnZS1jaGVja3MiKS5pbm5lckhUTUwgPSByb3dzLm1hcCgoW2ZpbGUsIG9rLCBzdGF0dXNdKSA9PgogICAgICBgPGRpdiBjbGFzcz0icGFnZS1jaGVjayI+PHNwYW4+JHtlc2MoZmlsZSl9PC9zcGFuPmAgKwogICAgICBgPHN0cm9uZyBkYXRhLW9rPSIke29rfSI+JHtvayA/ICLooajnpLrmraPluLgiIDogYOWkseaVlyAke3N0YXR1c31gfTwvc3Ryb25nPjwvZGl2PmAKICAgICkuam9pbigiIik7CiAgfQoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCJET01Db250ZW50TG9hZGVkIiwgKCkgPT4gewogICAgJCgiI2NoZWNrLWZhY2lsaXR5IikudmFsdWUgPSBjb25maWcuRkFDSUxJVFlfQ09ERTsKICAgICQoIiNjaGVjay1sb2dpbi1mb3JtIikuYWRkRXZlbnRMaXN0ZW5lcigic3VibWl0IiwgbG9naW4pOwogICAgJCgiI2NoZWNrLWNsZWFyIikuYWRkRXZlbnRMaXN0ZW5lcigiY2xpY2siLCAoKSA9PiAkKCIjY2hlY2stY29kZSIpLnZhbHVlID0gIiIpOwogICAgJCgiI2NoZWNrLXJlcnVuIikuYWRkRXZlbnRMaXN0ZW5lcigiY2xpY2siLCBydW4pOwogICAgJCgiI2NoZWNrLWxvZ291dCIpLmFkZEV2ZW50TGlzdGVuZXIoImNsaWNrIiwgbG9nb3V0KTsKICAgIGRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5kYXRhc2V0LmdyZWVuU3lzdGVtQ2hlY2sgPSBWRVJTSU9OOwogICAgcmVzdG9yZSgpOwogIH0pOwp9KSgpOwo=' | base64 --decode > system-check.js
+
+      - name: Read-only static checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check system-check.js
+          grep -q 'GREEN FC COMMON / READ ONLY' system-check.html
+          grep -q 'この画面は読み取り専用です' system-check.html
+          grep -q 'DEMO基本データ：準備済み（読み取り専用）' system-check.js
+          grep -q 'GREEN-FC-COMMON-SC-READONLY-R52-20261004' system-check.js
+          ! grep -q '/api/admin/demo/prepare' system-check.js
+          ! grep -q 'demo-prepare' system-check.html
+          ! grep -q 'demo-prepare' system-check.js
+          ! grep -q 'demo-confirmed' system-check.html
+          ! grep -q 'demo-text' system-check.html
+          ! grep -q '下の操作で準備してください' system-check.js
+          grep -q 'check-rerun' system-check.html
+          grep -q 'checkPages' system-check.js
+          echo "system-check read-only PASS"
+
+      - name: FC common guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -n \
+            --exclude-dir=.git \
+            --exclude='*.yml' \
+            --exclude='*.yaml' \
+            -E 'cl_000001_green|2011750460-EpN149VY|dpro-cl-000001-green-(core|shop|line)' . \
+            >/tmp/forbidden.txt || { cat /tmp/forbidden.txt; exit 1; }
+
+      - name: Commit exact read-only system check
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DPRO GREEN DEMO R52 FIX2"
+          git config user.email "actions@users.noreply.github.com"
+          git add system-check.html system-check.js
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Fix GREEN DEMO system check read-only R52"
+          git push origin HEAD:main
