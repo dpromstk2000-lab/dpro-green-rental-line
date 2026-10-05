@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-DEMO-FC-COMMON-R49-20261004";
+  const VERSION = "GREEN-DEMO-FC-COMMON-R63-20261005";
   if (window.__DPRO_GREEN_DEMO_FC_COMMON__ === VERSION) return;
   window.__DPRO_GREEN_DEMO_FC_COMMON__ = VERSION;
 
@@ -10,6 +10,7 @@
     staffAuthR1: true,
     shopV3Backend: false,
     contactStableR3: true,
+    customerContactR16Demo: true,
     liffRoutingR2: true,
     ownerIdle60: true,
     nativeDateTime: true,
@@ -62,6 +63,10 @@
     addJs("visit-rule","green-visit-rule-monthly-count-r3.js","GREEN-VISIT-RULE-MONTHLY-COUNT-R3.0-20261001");
     addJs("datetime","green-datetime-standard-r1.js","GREEN-DATETIME-STANDARD-R1.3-CUSTOM-PICKER-20261003");
     addJs("contact-primary-ui","green-contact-primary-ui-r1.js","GREEN-CONTACT-PRIMARY-UI-R1.6-20261002");
+    if (CAPABILITIES.customerContactR16Demo) {
+      addCss("customer-contact-r16-demo-css","green-customer-contact-r1.css","GREEN-CUSTOMER-CONTACT-DEMO-R63-20261005");
+      addJs("customer-contact-r16-demo-js","green-customer-contact-demo-r63.js","GREEN-CUSTOMER-CONTACT-DEMO-R1.0-20261005");
+    }
     if (CAPABILITIES.atlasImageWrite) addJs("atlas-image-manager","green-owner-atlas-image-manager-r1.js","GREEN-OWNER-ATLAS-IMAGE-MANAGER-R1.0-20261004");
     if (CAPABILITIES.staffAuthR1) addJs("staff-auth","green-staff-auth-r1.js","GREEN-STAFF-AUTH-OWNER-R1.0-20261001");
   }
