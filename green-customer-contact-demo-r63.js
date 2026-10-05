@@ -187,7 +187,10 @@
     try{
       const result=await coreApi("/api/admin/leads",{method:"POST",json:{inquiryId:item.id,status:item.raw?.status||"new"}});
       window.Green?.toast?.(result?.data?.reused?"既存の営業案件を開きます。":"営業案件を作成しました。","success");
-      const leadNav=$('[data-view="leads"]'); if(leadNav)setTimeout(()=>leadNav.click(),250);
+      const params=new URLSearchParams(location.search);
+      params.set("view","leads");
+      const target=`${location.pathname}?${params.toString()}#leads`;
+      setTimeout(()=>location.assign(target),250);
     }catch(error){window.Green?.toast?.(`営業案件を作成できませんでした。${error.message}`,"error");if(button){button.disabled=false;button.textContent="営業案件へ進める";}}
   }
 
