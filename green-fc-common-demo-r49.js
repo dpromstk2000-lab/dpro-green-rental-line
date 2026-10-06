@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const VERSION = "GREEN-DEMO-FC-COMMON-R63-20261005";
+  const VERSION = "GREEN-DEMO-FC-COMMON-R64-20261006";
   if (window.__DPRO_GREEN_DEMO_FC_COMMON__ === VERSION) return;
   window.__DPRO_GREEN_DEMO_FC_COMMON__ = VERSION;
 
@@ -65,7 +65,7 @@
     addJs("contact-primary-ui","green-contact-primary-ui-r1.js","GREEN-CONTACT-PRIMARY-UI-R1.6-20261002");
     if (CAPABILITIES.customerContactR16Demo) {
       addCss("customer-contact-r16-demo-css","green-customer-contact-r1.css","GREEN-CUSTOMER-CONTACT-DEMO-R63-20261005");
-      addJs("customer-contact-r16-demo-js","green-customer-contact-demo-r63.js","GREEN-CUSTOMER-CONTACT-DEMO-R1.0-20261005");
+      addJs("customer-contact-r16-demo-js","green-customer-contact-demo-r63.js","GREEN-CUSTOMER-CONTACT-DEMO-R1.1-20261006");
     }
     if (CAPABILITIES.atlasImageWrite) addJs("atlas-image-manager","green-owner-atlas-image-manager-r1.js","GREEN-OWNER-ATLAS-IMAGE-MANAGER-R1.0-20261004");
     if (CAPABILITIES.staffAuthR1) addJs("staff-auth","green-staff-auth-r1.js","GREEN-STAFF-AUTH-OWNER-R1.0-20261001");

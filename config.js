@@ -33,7 +33,7 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   "use strict";
   const HERO_ADMIN_VERSION = "DPRO-CUSTOMER-HERO-2-20260808";
   const SHOP_OWNER_VERSION = "GREEN-SHOP-OWNER-R1.3-20260923";
-  const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";
+  const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.4-CUSTOMER-CONTACT-20261004";
   const OWNER_UX_FIX_VERSION = "GREEN-OWNER-UX-FIX-R2.9-20260915";
   const OWNER_JST_FIX_VERSION = "GREEN-OWNER-JST-DATETIME-FIX-R1.4-20260916";
   const ANNOUNCEMENT_JST_FIX_VERSION = "GREEN-ANNOUNCEMENT-JST-FIX-R1.2-20260916";
@@ -292,15 +292,15 @@ window.DPRO_CUSTOMER_HERO_CONFIG = window.GREEN_CONFIG.CUSTOMER_HERO;
   else boot();
 })();
 
-/* DPRO GREEN DEMO FC COMMON R48 / activated 2026-10-04 */
+/* DPRO GREEN DEMO FC COMMON R64 / activated 2026-10-06 */
 (() => {
   "use strict";
   const install = () => {
-    if (document.querySelector('script[data-green-demo-fc-common="r48"]')) return;
+    if (document.querySelector('script[data-green-demo-fc-common="r64"]')) return;
     const s=document.createElement("script");
-    s.src="./green-fc-common-demo-r49.js?v=GREEN-DEMO-FC-COMMON-R49-20261004";
+    s.src="./green-fc-common-demo-r49.js?v=GREEN-DEMO-FC-COMMON-R64-20261006";
     s.defer=true;
-    s.dataset.greenDemoFcCommon="r48";
+    s.dataset.greenDemoFcCommon="r64";
     document.head.appendChild(s);
   };
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",install,{once:true});
