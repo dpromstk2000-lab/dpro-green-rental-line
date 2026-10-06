@@ -1,0 +1,92 @@
+name: DPRO GREEN DEMO FC R64 Sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DEMO
+        uses: actions/checkout@v4
+
+      - name: Sync FC common owner flow from Kasuya production
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            https://raw.githubusercontent.com/dpromstk2000-lab/dpro-cl-000001-green/main/green-owner-flow.js \
+            -o green-owner-flow.js
+
+      - name: Upgrade DEMO FC common loader to R64
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path("config.js")
+          s = p.read_text(encoding="utf-8")
+          replacements = {
+              'const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.2-20260901";':
+                  'const OWNER_FLOW_VERSION = "GREEN-OWNER-FLOW-R1.4-CUSTOMER-CONTACT-20261004";',
+              'DPRO GREEN DEMO FC COMMON R48 / activated 2026-10-04':
+                  'DPRO GREEN DEMO FC COMMON R64 / activated 2026-10-06',
+              'data-green-demo-fc-common="r48"':
+                  'data-green-demo-fc-common="r64"',
+              './green-fc-common-demo-r49.js?v=GREEN-DEMO-FC-COMMON-R49-20261004':
+                  './green-fc-common-demo-r49.js?v=GREEN-DEMO-FC-COMMON-R64-20261006',
+              's.dataset.greenDemoFcCommon="r48";':
+                  's.dataset.greenDemoFcCommon="r64";',
+          }
+          for old, new in replacements.items():
+              if old in s:
+                  s = s.replace(old, new)
+              elif new not in s:
+                  raise SystemExit(f"Expected config marker not found: {old}")
+          p.write_text(s, encoding="utf-8")
+
+          p = Path("green-fc-common-demo-r49.js")
+          s = p.read_text(encoding="utf-8")
+          replacements = {
+              'GREEN-DEMO-FC-COMMON-R63-20261005':
+                  'GREEN-DEMO-FC-COMMON-R64-20261006',
+              'GREEN-CUSTOMER-CONTACT-DEMO-R1.0-20261005':
+                  'GREEN-CUSTOMER-CONTACT-DEMO-R1.1-20261006',
+          }
+          for old, new in replacements.items():
+              if old in s:
+                  s = s.replace(old, new)
+              elif new not in s:
+                  raise SystemExit(f"Expected common marker not found: {old}")
+          p.write_text(s, encoding="utf-8")
+
+      - name: Validate FC R64
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check config.js
+          node --check green-owner-flow.js
+          node --check green-fc-common-demo-r49.js
+          node --check green-customer-contact-demo-r63.js
+          grep -q 'GREEN-OWNER-FLOW-R1.4-CUSTOMER-CONTACT-20261004' green-owner-flow.js
+          grep -q 'GREEN-OWNER-FLOW-R1.4-CUSTOMER-CONTACT-20261004' config.js
+          grep -q 'GREEN-DEMO-FC-COMMON-R64-20261006' green-fc-common-demo-r49.js
+          grep -q 'GREEN-CUSTOMER-CONTACT-DEMO-R1.1-20261006' green-fc-common-demo-r49.js
+          grep -q 'data-green-demo-fc-common="r64"' config.js
+          grep -q 'params.set("view","leads")' green-customer-contact-demo-r63.js
+
+      - name: Commit FC R64 sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Already synchronized; no changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config.js green-owner-flow.js green-fc-common-demo-r49.js
+          git commit -m "Sync GREEN DEMO to FC common R64"
+          git push
