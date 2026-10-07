@@ -8,7 +8,7 @@
   const config = window.GREEN_CONFIG;
   const query = new URLSearchParams(location.search);
   const autoDemo = query.get("demo") === "1" && config.FACILITY_CODE === "dpro_green_rental_demo";
-  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "facility-settings", "business-calendar", "announcements", "features"]);
+  const allowedInitialViews = new Set(["dashboard", "inquiries", "leads", "site-checks", "customers", "sites", "contracts", "assets", "installations", "visits", "reports", "replacements", "messages", "stock", "facility-settings", "business-calendar", "announcements", "blog", "features"]);
   const requestedInitialView = query.get("view");
   const initialView = allowedInitialViews.has(requestedInitialView) ? requestedInitialView : "dashboard";
   const state = {
@@ -232,7 +232,7 @@
     state.currentView = view;
     $$("[data-view-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.viewPanel === view));
     $$("[data-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
-    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", "facility-settings": "店舗・事業所設定", "business-calendar": "営業日・休日", announcements: "公開お知らせ", features: "機能設定" };
+    const titles = { dashboard: "ダッシュボード", inquiries: "問い合わせ", leads: "営業対応", "site-checks": "現地確認", customers: "顧客", sites: "拠点・設置場所", contracts: "利用・契約状態", assets: "植物・鉢台帳", installations: "設置・移動", visits: "巡回予定", reports: "作業報告", replacements: "交換・回収・養生", messages: "LINE・メッセージ", stock: "簡易在庫", "facility-settings": "店舗・事業所設定", "business-calendar": "営業日・休日", announcements: "公開お知らせ", blog: "ブログ・コラム", features: "機能設定" };
     $("#view-title").textContent = titles[view] || "管理画面";
     closeSidebar();
     try {

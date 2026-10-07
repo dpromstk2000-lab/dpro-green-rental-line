@@ -8,7 +8,7 @@
   <title>DPRO グリーンレンタル管理</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="owner.css?v=GREEN-EVG-R2-20260923">
-</head>
+  <link rel="stylesheet" href="green-demo-blog-r1.css?v=GREEN-DEMO-BLOG-R1-20261007">\n</head>
 <body class="owner-body">
   <a class="skip-link" href="#owner-main">本文へ移動</a>
 
@@ -50,7 +50,7 @@
         <button data-view="stock"><span>庫</span>簡易在庫</button>
         <button data-view="facility-settings"><span>店</span>店舗・事業所設定</button>
         <button data-view="business-calendar"><span>休</span>営業日・休日</button>
-        <button data-view="announcements"><span>知</span>公開お知らせ</button>
+        <button data-view="announcements"><span>知</span>公開お知らせ</button>\n        <button data-view="blog"><span>編</span>ブログ・コラム</button>
         <button data-view="features"><span>⚙</span>機能設定</button>
       </nav>
       <div class="owner-side-bottom">
@@ -371,7 +371,27 @@
           <div id="announcement-list" class="green12-list"><div class="owner-loading">読み込み中です。</div></div>
         </section>
 
-        <section class="owner-view" data-view-panel="features">
+        <section class="owner-view" data-view-panel="blog">
+          <div class="owner-heading"><div><p class="eyebrow">BLOG CMS / PUBLIC DEMO</p><h2>ブログ・コラム</h2><p>下書き・今すぐ公開・予約公開まで、オーナー画面の操作を体験できます。</p></div><button class="btn btn--primary" id="demo-blog-new" type="button">＋ 新しい記事</button></div>
+          <div class="owner-warning-box">公開DEMO専用です。ここで保存した内容はこのブラウザ内だけに保存され、本番データや実際のホームページには反映されません。</div>
+          <div id="demo-blog-stats" class="demo-blog-stats"></div>
+          <article class="owner-panel"><div class="owner-panel-head"><div><h3>記事一覧</h3><p>公開状態と公開予定を確認できます。</p></div><button class="btn btn--secondary btn--small" id="demo-blog-reset" type="button">初期状態へ戻す</button></div><div id="demo-blog-list" class="demo-blog-list"></div></article>
+          <article class="owner-panel" id="demo-blog-editor" hidden>
+            <div class="owner-panel-head"><div><h3 id="demo-blog-editor-title">記事を編集</h3><p>通常はこの項目だけで公開できます。</p></div><button class="btn btn--secondary btn--small" id="demo-blog-close" type="button">編集を閉じる</button></div>
+            <form id="demo-blog-form" class="owner-form-grid" novalidate>
+              <input type="hidden" name="id">
+              <label>カテゴリ<select name="category"><option>設置事例</option><option>植物紹介</option><option>季節のお手入れ</option><option>店舗からのお知らせ</option><option>お役立ち情報</option></select></label>
+              <label>公開状態<select name="status"><option value="draft">下書き</option><option value="scheduled">予約公開</option><option value="published">今すぐ公開</option><option value="archived">非公開</option></select></label>
+              <div class="demo-blog-schedule full" id="demo-blog-schedule" hidden><label>公開予定日<input type="date" name="scheduleDate"></label><label>時間（任意）<input type="time" name="scheduleTime" value="09:00"><small>未指定の場合は9:00に公開します。</small></label></div>
+              <label class="full">タイトル<input name="title" required></label>
+              <label class="full">一覧に表示する短い説明<textarea name="excerpt" rows="3"></textarea></label>
+              <label class="full">本文<textarea name="body" rows="12" required></textarea></label>
+              <label class="full">メイン写真<div class="demo-blog-image">DEMO IMAGE<br><small>本番では写真を選択できます</small></div></label>
+              <div class="full demo-blog-actions"><button type="button" class="btn btn--secondary" id="demo-blog-preview">プレビュー</button><button type="button" class="btn btn--primary" id="demo-blog-save">下書きを保存</button></div>
+            </form>
+          </article>
+        </section>
+\n        <section class="owner-view" data-view-panel="features">
           <div class="owner-heading"><div><p class="eyebrow">FEATURE SETTINGS</p><h2>機能設定</h2><p>店舗運用に合わせて機能を切り替えます。OFFにしても既存データは削除しません。</p></div><button class="btn btn--primary" id="feature-save-all">変更を保存</button></div>
           <div class="owner-warning-box" id="feature-dependency-box">依存関係を確認しています。</div>
           <div id="feature-groups" class="feature-groups"></div>
@@ -397,5 +417,5 @@
   <script src="owner.js?v=GREEN-EVG-OWNER-R1.9.3-20260922"></script>
   <script src="green12.js"></script>
   <script src="feature-settings.js?v=GREEN-EVG-OWNER-R2.0-20260923"></script>
-</body>
+  <script src="green-demo-blog-r1.js?v=GREEN-DEMO-BLOG-R1-20261007"></script>\n</body>
 </html>
