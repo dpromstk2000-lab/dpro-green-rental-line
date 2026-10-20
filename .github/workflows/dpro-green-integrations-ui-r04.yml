@@ -1,0 +1,50 @@
+name: DPRO GREEN Upgrade Integrations UI R0.4 (safe OFF)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  replace-r02-with-r04:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - name: Assert exact legacy references and replace with R0.4
+        shell: python
+        run: |
+          from pathlib import Path
+          html=Path('owner.html')
+          assert html.is_file(), 'owner.html missing: refusing any changes'
+          assert Path('green-integrations-ui-r04.js').is_file(), 'R0.4 JS must be in repo root'
+          assert Path('green-integrations-r04.css').is_file(), 'R0.4 CSS must be in repo root'
+          data=html.read_text(encoding='utf-8')
+          old_css='green-integrations-r02.css?v=20261020'
+          old_js='green-integrations-ui-r02.js?v=20261020'
+          new_css='green-integrations-r04.css?v=20261020'
+          new_js='green-integrations-ui-r04.js?v=20261020'
+          assert data.count('data-view-panel="facility-settings"')==1, 'owner settings panel not unique'
+          if new_css in data and new_js in data:
+            assert old_css not in data and old_js not in data, 'mixed versions detected'
+            assert data.count(new_css)==1 and data.count(new_js)==1, 'duplicate R0.4 refs'
+            print('R0.4 already installed; no changes.')
+          else:
+            assert data.count(old_css)==1 and data.count(old_js)==1, 'R0.2 references missing or duplicated'
+            assert new_css not in data and new_js not in data, 'partial prior install'
+            data=data.replace(old_css,new_css,1).replace(old_js,new_js,1)
+            assert data.count(new_css)==1 and data.count(new_js)==1, 'R0.4 injection failed'
+            assert old_css not in data and old_js not in data, 'old refs not removed'
+            html.write_text(data,encoding='utf-8')
+            print('Replaced only R0.2 UI references, left all existing forms and APIs unchanged.')
+      - name: Commit only owner.html
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git add owner.html
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'DPRO GREEN integrations UI R0.4 separate OAuth gates (safe off)'
+            git push
+          else
+            echo 'No changes; existing UI already at R0.4.'
+          fi
