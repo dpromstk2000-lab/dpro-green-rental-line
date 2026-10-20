@@ -1,0 +1,41 @@
+name: DPRO GREEN Install Integrations UI R0.2 (safe OFF)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  inject-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify uploaded UI files and inject references safely
+        shell: python
+        run: |
+          from pathlib import Path
+          h=Path('owner.html')
+          assert h.exists(), 'owner.html must exist; abort rather than overwrite'
+          assert Path('green-integrations-ui-r02.js').exists(), 'UI JavaScript is missing'
+          assert Path('green-integrations-r02.css').exists(), 'UI CSS is missing'
+          s=h.read_text(encoding='utf-8')
+          assert s.count('</head>') == 1 and s.count('</body>') == 1
+          assert s.count('data-view-panel="facility-settings"') == 1
+          css='<link rel="stylesheet" href="green-integrations-r02.css?v=20261020">'
+          js='<script src="green-integrations-ui-r02.js?v=20261020" defer></script>'
+          if 'green-integrations-r02.css' not in s:s=s.replace('</head>', '  '+css+'\n</head>')
+          if 'green-integrations-ui-r02.js' not in s:s=s.replace('</body>', '  '+js+'\n</body>')
+          h.write_text(s,encoding='utf-8')
+          assert s.count('green-integrations-r02.css') == 1
+          assert s.count('green-integrations-ui-r02.js') == 1
+          print('owner.html injection verified; no original content deleted.')
+      - name: Commit only owner.html modification
+        run: |
+          git diff --check
+          git add owner.html
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'DPRO GREEN: add integrations UI R0.2 (safe off)'
+            git push
+          else
+            echo 'Already installed. No changes.'
+          fi
