@@ -1,0 +1,12 @@
+/* DPRO GREEN integrations R0.2: scoped styles only */
+.green-integration-panel{margin-top:20px;padding:20px}
+.green-integrations-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.green-integrations-header h3{margin:0 0 8px;font-size:1.25rem}
+.green-integrations-header p{margin:4px 0 12px;line-height:1.6}
+.green-integrations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.green-integrations-provider{background:#f8fbfa;border:1px solid #dae8e4;border-radius:14px;padding:16px}
+.green-integrations-provider h4{margin:0 0 8px;font-size:1.15rem}
+.green-integrations-provider p{line-height:1.5;margin:6px 0 13px}
+.green-integrations-provider p[role=status]{font-weight:700;color:#155b50}
+.green-integrations-message{background:#edf6f3;border-radius:10px;padding:11px 14px;margin:14px 0 0;line-height:1.55}
+.green-integration-panel button:disabled{opacity:.6;cursor:not-allowed}
