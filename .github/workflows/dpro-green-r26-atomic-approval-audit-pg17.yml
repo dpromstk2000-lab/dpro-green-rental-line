@@ -1,0 +1,187 @@
+name: DPRO GREEN R2.6 Atomic Approval and Audit PostgreSQL QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dpro-green-r26-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated-pg17-approval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-r26-only
+          POSTGRES_DB: green_r26_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d green_r26_disposable"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic-r26-only
+      PGDATABASE: green_r26_disposable
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Expand checksum-verified synthetic fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/green-r26"
+          cat > "$RUNNER_TEMP/green-r26.tar.gz.b64" <<'R26_FIXTURE_BASE64'
+          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
+          x8+f8fk/0MAnywB4AAA=
+          R26_FIXTURE_BASE64
+          base64 -d "$RUNNER_TEMP/green-r26.tar.gz.b64" > "$RUNNER_TEMP/green-r26.tar.gz"
+          echo "5015153156ead5d3bd9d24f9ad62a593d58e653e48b295affed902931cc42ea5  $RUNNER_TEMP/green-r26.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/green-r26.tar.gz" -C "$RUNNER_TEMP/green-r26"
+      - name: Run synthetic PostgreSQL 17 atomic approval SQL checks
+        shell: bash
+        run: bash "$RUNNER_TEMP/green-r26/R26_RUN_PG17.sh"
+      - name: Run R2.6 audit timestamp compatibility regression
+        shell: bash
+        run: node "$RUNNER_TEMP/green-r26/test-r26-audit-timestamps.mjs"
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo '### DPRO GREEN R2.6 isolated approval+audit QA' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only synthetic PostgreSQL 17 database and Node mocks. No live Supabase, no owner invitations, no SMS, no Google OAuth, no Square payments or Worker Deploy.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PASS confirms synthetic SQL operation, NOT production authorization.' >> "$GITHUB_STEP_SUMMARY"
