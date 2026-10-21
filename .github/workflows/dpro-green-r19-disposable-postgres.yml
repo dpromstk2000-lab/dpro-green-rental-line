@@ -1,0 +1,171 @@
+name: DPRO GREEN R1.9 Disposable PostgreSQL QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: green-r19-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pg17-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-r19-runner-only
+          POSTGRES_DB: green_r19_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d green_r19_disposable"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PGHOST: '127.0.0.1'
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic-r19-runner-only
+      PGDATABASE: green_r19_disposable
+    steps:
+      - name: Install local PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Decode checked ephemeral fixture (no external source)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dpro-green-r19"
+          cat > "$RUNNER_TEMP/dpro-green-r19.tar.gz.b64" <<'R19_EMBEDDED_FIXTURE'
+          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
+          R19_EMBEDDED_FIXTURE
+          base64 -d "$RUNNER_TEMP/dpro-green-r19.tar.gz.b64" > "$RUNNER_TEMP/dpro-green-r19.tar.gz"
+          echo "0dd5fdcde7130267776bf4355787697ebdea1545738262e31f931b886e635507  $RUNNER_TEMP/dpro-green-r19.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/dpro-green-r19.tar.gz" -C "$RUNNER_TEMP/dpro-green-r19"
+      - name: PostgreSQL 17 atomicity, replay, concurrency and privilege tests
+        shell: bash
+        run: bash "$RUNNER_TEMP/dpro-green-r19/R19_RUN.sh"
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo '### DPRO GREEN R1.9 - Synthetic PostgreSQL verification' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Ephemeral PostgreSQL 17 only. No live Supabase, secrets, customer data, oauth, payments, deploy or DDL in production.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Pass means synthetic fixture check, not production authorization.' >> "$GITHUB_STEP_SUMMARY"
