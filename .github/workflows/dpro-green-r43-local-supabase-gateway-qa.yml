@@ -1,0 +1,159 @@
+name: DPRO GREEN R4.3 Local Supabase Gateway and Auth Role Isolated QA
+'on':
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: dpro-green-r43-supabase-local-gate
+  cancel-in-progress: false
+jobs:
+  r43-local-supabase:
+    name: r43-local-supabase
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+    - name: Set up Node 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install Supabase CLI pinned
+      uses: supabase/setup-cli@v3.0.1
+      with:
+        version: 2.121.0
+    - name: Make sure psql client exists
+      shell: bash
+      run: if ! command -v psql >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y postgresql-client; fi
+    - name: Run isolated synthetic local gateway role checks
+      shell: bash
+      run: 'set -euo pipefail
+
+        if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then echo ''Refused outside Actions''; exit 45; fi
+
+        # No checkout, project link, production secret, or environment secrets.
+
+        R43_DIR="$(mktemp -d)"
+
+        trap ''rm -rf "$R43_DIR"'' EXIT
+
+        cd "$R43_DIR"
+
+        cat > artifact.b64 <<''R43_EMBEDDED_SYNTHETIC_QA''
+
+        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
+
+        R43_EMBEDDED_SYNTHETIC_QA
+
+        base64 --decode artifact.b64 > synthetic.tar.gz
+
+        printf ''%s  %s\n'' ''09593a776dd9c6d5feae2af427520a9f42f1f7ee0da361a3795349a0010428cf'' synthetic.tar.gz | sha256sum
+        -c -
+
+        tar xzf synthetic.tar.gz
+
+        rm -f artifact.b64 synthetic.tar.gz
+
+        bash -n r43_run.sh
+
+        node --check r43_http.mjs
+
+        bash r43_run.sh
+
+        '
