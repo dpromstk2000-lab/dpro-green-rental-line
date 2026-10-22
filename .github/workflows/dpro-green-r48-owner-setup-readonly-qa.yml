@@ -1,0 +1,124 @@
+name: DPRO GREEN R4.8 Owner Setup Read Only Isolated QA
+'on':
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dpro-green-r48-owner-setup-readonly
+  cancel-in-progress: false
+jobs:
+  r48-owner-setup-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Set up Node 22 with Node 24 action runtime
+        uses: actions/setup-node@v5.0.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verify four source files and run isolated tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_ACTIONS:-}" == 'true' ]] || exit 65
+          qa_dir="$(mktemp -d)"
+          trap 'rm -rf "$qa_dir"' EXIT
+          cd "$qa_dir"
+          cat > payload.b64 <<'GREEN_R48_QA_PAYLOAD'
+          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
+          uX/un/vne37+F2c4FdwAUAAA
+          GREEN_R48_QA_PAYLOAD
+          base64 -d payload.b64 > payload.tar.gz
+          printf '%s  %s\n' '6e9d1578ad51714f3e00f81c69af5d6b939fff5def9d4def34dd5f446efff775' payload.tar.gz | sha256sum -c -
+          tar -tzf payload.tar.gz
+          tar xzf payload.tar.gz
+          for p in green-owner-setup-overview-r48.mjs test-r48-owner-setup.mjs green-owner-setup-view-model-r48.mjs test-r48-owner-setup-view.mjs; do test -f "$p" || exit 66; done
+          node --check green-owner-setup-overview-r48.mjs
+          node --check green-owner-setup-view-model-r48.mjs
+          node test-r48-owner-setup.mjs
+          node test-r48-owner-setup-view.mjs
+          echo 'R4.8 synthetic read-only QA PASSED. No live integrations tested.'
