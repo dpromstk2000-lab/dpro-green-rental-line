@@ -1,0 +1,138 @@
+# DPRO GREEN R5.1: real PG17 test against GitHub Actions throwaway service ONLY.
+# No checkout, repo contents, Supabase project or external service credentials.
+name: DPRO GREEN R5.1 Disposable PostgreSQL 17 Atomic QA
+'on':
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dpro-green-r51-disposable-pg17-atomic
+  cancel-in-progress: false
+jobs:
+  r51-postgres17-atomic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: postgres:17
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: isolated_qa
+          POSTGRES_PASSWORD: synthetic_only_ci_password_2026
+          POSTGRES_DB: green_r51_isolated
+        options: >-
+          --health-cmd "pg_isready -U isolated_qa -d green_r51_isolated"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: pg
+      PGPORT: '5432'
+      PGUSER: isolated_qa
+      PGPASSWORD: synthetic_only_ci_password_2026
+      PGDATABASE: green_r51_isolated
+    steps:
+      - name: Verify source and run isolated PostgreSQL 17 security and atomic QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_ACTIONS:-}" == 'true' ]] || exit 65
+          [[ "${PGHOST:-}" == 'pg' ]] || exit 65
+          [[ "${PGDATABASE:-}" == 'green_r51_isolated' ]] || exit 65
+          qa_dir="$(mktemp -d)"
+          trap 'rm -rf "$qa_dir"' EXIT
+          cd "$qa_dir"
+          cat > payload.b64 <<'GREEN_R51_QA_PAYLOAD'
+          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
+          GREEN_R51_QA_PAYLOAD
+          base64 -d payload.b64 > payload.tar.gz
+          printf '%s  %s\n' '63a5bbfa851e37334d5befc6fbebe8477958b96c0be7c6cc04b01acf1a5f5de7' payload.tar.gz | sha256sum -c -
+          tar -tzf payload.tar.gz > embedded-file-list.txt
+          [[ "$(wc -l < embedded-file-list.txt)" -eq 4 ]] || exit 66
+          for item in green-owner-provider-store-r50-review.sql r51_disposable_pg_bootstrap.sql r51_disposable_pg_assert.sql r51_disposable_pg_runner.sh; do
+            grep -Fxq "$item" embedded-file-list.txt || exit 66
+          done
+          tar xzf payload.tar.gz
+          for item in green-owner-provider-store-r50-review.sql r51_disposable_pg_bootstrap.sql r51_disposable_pg_assert.sql r51_disposable_pg_runner.sh; do
+            test -f "$item" || exit 66
+          done
+          bash -n r51_disposable_pg_runner.sh
+          bash r51_disposable_pg_runner.sh
