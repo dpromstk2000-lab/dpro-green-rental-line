@@ -1,0 +1,99 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DPRO GREEN｜オーナー向け設定体験版</title><style>:root{font:18px/1.65 system-ui,-apple-system,"Yu Gothic",Meiryo,sans-serif;color:#193b2d;background:#f4f8f4}*{box-sizing:border-box}body{margin:0}button,select{font:inherit}button{cursor:pointer}.skip{position:absolute;top:-90px;left:8px;background:#fff;padding:10px}.skip:focus{top:8px}.top{background:#fff;border-bottom:1px solid #cfdfd1;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}.logo{font-size:21px;font-weight:900;color:#0b6149}.badge{border:1px solid #b98f51;background:#fff1d8;color:#664817;font-size:13px;padding:4px 12px;border-radius:30px;font-weight:800}.layout{max-width:1260px;margin:auto;display:grid;grid-template-columns:245px minmax(0,1fr);gap:22px;padding:20px}.side{background:#fff;border:1px solid #d5e2d7;border-radius:15px;padding:15px;align-self:start}.side h2{margin:0 0 12px;font-size:17px}.nav{width:100%;text-align:left;padding:12px 14px;border:1px solid transparent;border-radius:10px;background:#fff;margin-bottom:7px;color:#234a38;font-weight:800;min-height:53px}.nav[aria-current="page"]{background:#dbf1e4;border-color:#89bca0;color:#0b5f46}.content{min-width:0;padding-bottom:85px}.screen[hidden]{display:none!important}.hero{background:#0b6750;color:#fff;border-radius:17px;padding:24px 27px}.hero h1{font-size:clamp(25px,4vw,35px);line-height:1.35;margin:0 0 6px}.hero p{margin:0}.hold{border:2px solid #c59b4e;border-radius:11px;background:#fff1d9;padding:15px 18px;font-weight:850;margin:17px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.tile{min-width:0;min-height:155px;padding:22px 24px;border:1px solid #b4d2bb;border-radius:16px;background:#fff;text-align:left;color:#164432;box-shadow:0 4px 15px #16432611;display:flex;flex-direction:column;justify-content:space-between}.tile b{font-size:24px}.tile span{font-size:16px}.tile em{font-style:normal;color:#14674d;font-weight:850}.tile:hover,.tile:focus-visible{border-color:#117150;background:#ecf8ef}.panel{margin-top:17px;padding:22px 25px;background:#fff;border:1px solid #cfdfd2;border-radius:16px}.panel h2{margin:0 0 12px;font-size:25px}.panel h3{font-size:20px;margin:16px 0 7px}.state{border-left:6px solid #b27e36;background:#fff2dd;padding:13px 15px;font-weight:850}.muted{color:#426453}.steps{padding-left:29px}.steps li{margin:10px 0}.back{background:#fff;color:#0d6148;border:2px solid #2e8064;border-radius:10px;padding:10px 18px;min-height:50px;font-weight:900;margin:15px 0}.field{display:grid;gap:8px;font-weight:850;max-width:560px}.field select{min-height:52px;border:2px solid #74a68c;padding:8px 12px;border-radius:10px;background:#fff;color:#153c2a}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.check{display:flex;gap:12px;align-items:flex-start;background:#eef6ef;padding:13px;border:1px solid #cfdfd0;border-radius:11px;cursor:pointer}.check input{width:22px;height:22px;flex:none;accent-color:#096d50;margin:4px 0}.operator li{padding:7px 0}.small{font-size:15px;color:#42604e}.footer{text-align:center;color:#4a6853;margin-top:20px}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #efab30;outline-offset:3px}@media(max-width:880px){.layout{grid-template-columns:1fr;padding:14px}.side{display:flex;gap:7px;overflow-x:auto;align-items:center;padding:11px}.side h2{display:none}.nav{flex:none;width:auto;white-space:nowrap;margin:0}.hero{padding:20px}}@media(max-width:600px){.grid,.checks{grid-template-columns:1fr}.tile{min-height:132px;padding:19px}.panel{padding:18px}.top{padding:12px}.layout{gap:10px}.content{padding-bottom:100px}}@media print{@page{size:A4 portrait;margin:12mm}body{background:#fff;color:#000}.top,.side,.back,.skip{display:none!important}.layout{display:block;padding:0}.content{padding:0}.hero{background:#fff!important;color:#000!important;border-radius:0;border-bottom:2px solid #000;padding:0 0 10px}.tile,.panel{box-shadow:none;break-inside:avoid}.screen:not([hidden]){display:block}.hold{border:1px solid #777}.footer{color:#000}.grid{grid-template-columns:1fr 1fr}}</style></head><body>
+<a class="skip" href="#main">本文へ移動</a><header class="top"><span class="logo">DPRO GREEN / OWNER</span><span class="badge">操作体験版｜外部連携なし</span></header>
+<div class="layout"><aside class="side" aria-label="画面切り替え"><h2>メニュー</h2>
+<button class="nav" type="button" data-nav="home" data-go="home">ダッシュボード</button>
+<button class="nav" type="button" data-nav="google_calendar" data-go="google_calendar">Googleカレンダー</button>
+<button class="nav" type="button" data-nav="square" data-go="square">Square</button>
+<button class="nav" type="button" data-nav="readiness" data-go="readiness">準備チェック</button>
+</aside><main class="content" id="main" tabindex="-1">
+<section class="screen" data-screen="home"><div class="hero"><h1>オーナー設定ダッシュボード</h1><p>カードを押すと各画面へ移動し、すぐに戻れます。</p></div>
+<p class="hold" role="note">NO_GO / HOLD：これは操作体験版です。Google・Squareの実アカウント接続や決済は一切行いません。</p>
+<div class="grid">
+<button class="tile" data-go="google_calendar" type="button"><b>Googleカレンダー</b><span>連携状態の表示例と確認事項</span><em>確認する →</em></button>
+<button class="tile" data-go="square" type="button"><b>Square</b><span>連携状態の表示例と確認事項</span><em>確認する →</em></button>
+<button class="tile" data-go="readiness" type="button"><b>事前準備チェック</b><span>オーナー向けの6項目を確認</span><em>確認する →</em></button>
+<button class="tile" data-go="google_calendar" type="button"><b>困ったときは</b><span>画面内の状態例から安全な手順を確認</span><em>案内を見る →</em></button>
+</div></section>
+<section class="screen" data-screen="provider" hidden><button type="button" class="back" data-go="home">← ダッシュボードに戻る</button>
+<div class="hero"><h1 id="provider-heading">Googleカレンダー</h1><p>合成テストの状態例を閲覧できます。実アカウントの状態は取得していません。</p></div>
+<p class="hold">NO_GO / HOLD：実接続・解除・決済はできません。</p>
+<div class="panel"><label class="field" for="status-example">表示例を選択
+<select id="status-example"><option value="never_connected">まだ接続していない</option><option value="synthetic_linked">合成接続テストの例</option><option value="needs_renewal">合成期限切れの例</option></select></label>
+<h2>現在の表示例</h2><p id="provider-status" class="state" role="status" aria-live="polite"></p><p class="muted" id="provider-scope"></p>
+<h3>オーナーへの案内</h3><ol class="steps"><li id="provider-step-0"></li><li id="provider-step-1"></li><li id="provider-step-2"></li></ol>
+<p class="small">本物の連携状態ではありません。アカウント情報・認証コード・APIキーを入力しないでください。</p>
+<button type="button" class="back" data-go="readiness">準備チェックへ →</button></div>
+<button type="button" class="back" data-go="home">← ダッシュボードに戻る</button></section>
+<section class="screen" data-screen="readiness" hidden><button type="button" class="back" data-go="home">← ダッシュボードに戻る</button>
+<div class="hero"><h1>事前準備チェック</h1><p>オーナーご自身が知っておく6項目を、ここで試せます。</p></div>
+<p class="hold">NO_GO / HOLD：6項目がすべて完了しても実接続は始まりません。</p>
+<div class="panel"><label class="field" for="check-provider">確認するサービス<select id="check-provider"><option value="google_calendar">Googleカレンダー</option><option value="square">Square</option></select></label>
+<h2>① オーナーによる確認</h2><div class="checks"><label class="check" for="gate-correct_shop"><input type="checkbox" id="gate-correct_shop"><span>接続先の店舗が福岡粕屋店であることを確認した</span></label><label class="check" for="gate-authorized_owner"><input type="checkbox" id="gate-authorized_owner"><span>自分が正式な店舗オーナー／管理者であることを確認した</span></label><label class="check" for="gate-own_account"><input type="checkbox" id="gate-own_account"><span>自分が管理するGoogleまたはSquareアカウントを利用する</span></label><label class="check" for="gate-scope_read"><input type="checkbox" id="gate-scope_read"><span>連携目的と必要最小限の閲覧権限を確認した</span></label><label class="check" for="gate-no_secrets"><input type="checkbox" id="gate-no_secrets"><span>パスワード・認証コード・APIキーを人に渡さないと理解した</span></label><label class="check" for="gate-ask_before_payment"><input type="checkbox" id="gate-ask_before_payment"><span>有料契約や決済操作はDPRO確認前に行わないと理解した</span></label></div>
+<p id="check-progress" class="state" role="status" aria-live="polite">0 / 6項目確認</p><p id="check-status">自己確認が未完了。</p>
+<button type="button" class="back" id="reset-checks">チェックを最初から</button></div>
+<div class="panel"><h2>② DPRO運用側の確認</h2><p>以下8項目は、この体験版ではすべて未承認です。</p><ol class="operator"><li>正式なオーナー認証・失効・セッション保護：未検証・未承認</li><li>店舗分離、RLS、別店舗からの参照遮断：未検証・未承認</li><li>Google／Squareアプリ審査・商用設定確認：未検証・未承認</li><li>本番HTTPS、正規リダイレクトURI、PKCE／state／CSRF：未検証・未承認</li><li>最小権限・アカウント／merchant紐付け：未検証・未承認</li><li>秘密情報の安全な保存・アクセス制限・暗号化：未検証・未承認</li><li>更新・解除・失効・障害からの復帰：未検証・未承認</li><li>顧客受入・監査・ロールバック・正式公開承認：未検証・未承認</li></ol><p>オーナーのチェックで運用側の審査を解除できません。</p></div>
+<button type="button" class="back" id="print">A4で印刷する</button>
+<button type="button" class="back" data-go="home">← ダッシュボードに戻る</button></section>
+<p class="footer">ISOLATED QA ONLY｜NO_GO / HOLD｜DPRO GREEN</p></main></div>
+<script>(()=>{'use strict';
+  const details={"google_calendar":{"never_connected":{"title":"Googleカレンダー","status":"未接続（実接続はできません）","scope":"必要なのは管理対象イベントの閲覧範囲です。予定の作成や削除は行いません。","steps":["連携したい店舗とサービスが正しいか確認してください。","操作する方が店舗の正当なオーナーか確認してください。","正式な接続は公開許可後の専用画面で開始してください。"]},"synthetic_linked":{"title":"Googleカレンダー","status":"合成テスト成功／実アカウント未接続","scope":"必要なのは管理対象イベントの閲覧範囲です。予定の作成や削除は行いません。","steps":["これはテスト値の状態表示です。本物の連携完了ではありません。","予約情報や決済情報など、実データは取得していません。","正式運用には権限確認・アプリ審査・本番承認が別途必要です。"]},"needs_renewal":{"title":"Googleカレンダー","status":"合成期限切れ／更新・再認証が必要","scope":"必要なのは管理対象イベントの閲覧範囲です。予定の作成や削除は行いません。","steps":["古い認証コード・操作画面・接続URLを使い直さないでください。","連携する店舗と正当なオーナー権限を再確認してください。","正式公開後は安全な再接続画面から新しく操作してください。"]}},"square":{"never_connected":{"title":"Square","status":"未接続（実接続はできません）","scope":"確認対象は店舗プロフィールの閲覧範囲です。決済・返金・売上処理は行いません。","steps":["連携したい店舗とサービスが正しいか確認してください。","操作する方が店舗の正当なオーナーか確認してください。","正式な接続は公開許可後の専用画面で開始してください。"]},"synthetic_linked":{"title":"Square","status":"合成テスト成功／実アカウント未接続","scope":"確認対象は店舗プロフィールの閲覧範囲です。決済・返金・売上処理は行いません。","steps":["これはテスト値の状態表示です。本物の連携完了ではありません。","予約情報や決済情報など、実データは取得していません。","正式運用には権限確認・アプリ審査・本番承認が別途必要です。"]},"needs_renewal":{"title":"Square","status":"合成期限切れ／更新・再認証が必要","scope":"確認対象は店舗プロフィールの閲覧範囲です。決済・返金・売上処理は行いません。","steps":["古い認証コード・操作画面・接続URLを使い直さないでください。","連携する店舗と正当なオーナー権限を再確認してください。","正式公開後は安全な再接続画面から新しく操作してください。"]}}};
+  const gateIds=["correct_shop","authorized_owner","own_account","scope_read","no_secrets","ask_before_payment"];
+  const providerTitles={google_calendar:'Googleカレンダー',square:'Square'};
+  const by=id=>document.getElementById(id);
+  const screens=Array.from(document.querySelectorAll('[data-screen]'));
+  const nav=Array.from(document.querySelectorAll('[data-nav]'));
+  const checks=gateIds.map(id=>by('gate-'+id));
+  let provider='google_calendar';
+  function renderStatus(){
+    const row=details[provider]?.[by('status-example').value];
+    if(!row)return;
+    by('provider-heading').textContent=row.title;
+    by('provider-scope').textContent=row.scope;
+    by('provider-status').textContent=row.status;
+    for(let i=0;i<3;i++)by('provider-step-'+i).textContent=row.steps[i];
+  }
+  function renderChecks(){
+    const count=checks.filter(c=>c.checked).length;
+    by('check-progress').textContent=count+' / '+checks.length+'項目確認';
+    by('check-status').textContent=count===checks.length?
+      '自己確認は完了。ただし実接続はできません。':
+      '自己確認が未完了。実接続はできません。';
+  }
+  function show(target){
+    const screen=target==='google_calendar'||target==='square'?'provider':target;
+    if(!['home','provider','readiness'].includes(screen))return;
+    if(screen==='provider'){
+      provider=target;
+      by('status-example').value='never_connected';
+      renderStatus();
+    }
+    if(screen==='readiness'){
+      by('check-provider').value=provider;
+      renderChecks();
+    }
+    for(const s of screens)s.hidden=s.dataset.screen!==screen;
+    for(const n of nav){
+      const isActive=screen==='provider'?n.dataset.nav===provider:
+        n.dataset.nav===screen;
+      if(isActive)n.setAttribute('aria-current','page');
+      else n.removeAttribute('aria-current');
+    }
+    by('main').focus();
+  }
+  for(const node of document.querySelectorAll('[data-go]')){
+    node.addEventListener('click',()=>show(node.dataset.go));
+  }
+  by('status-example').addEventListener('change',renderStatus);
+  by('check-provider').addEventListener('change',()=>{
+    provider=by('check-provider').value;
+    for(const item of checks)item.checked=false;
+    renderChecks();
+  });
+  for(const item of checks)item.addEventListener('change',renderChecks);
+  by('reset-checks').addEventListener('click',()=>{
+    for(const item of checks)item.checked=false;
+    renderChecks();
+  });
+  by('print').addEventListener('click',()=>window.print());
+  renderStatus();renderChecks();show('home');
+})();</script></body></html>
