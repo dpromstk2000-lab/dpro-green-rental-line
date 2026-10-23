@@ -1423,8 +1423,7 @@ jobs:
           test -s R55_OWNER_SETUP_OFFLINE_PREVIEW.html
           grep -Fq 'NO_GO / HOLD' R55_OWNER_SETUP_OFFLINE_PREVIEW.html
           node build-r515-preview.mjs
-          printf '%s  %s
-' 'b8d84168e71a0ee9970a4864aefb1259cad5dd53b6416b975836f36f894a0a83' R515_OWNER_GUIDED_OFFLINE_PREVIEW.html | sha256sum -c -
+          printf '%s  %s\n' 'b8d84168e71a0ee9970a4864aefb1259cad5dd53b6416b975836f36f894a0a83' R515_OWNER_GUIDED_OFFLINE_PREVIEW.html | sha256sum -c -
           grep -Fq 'NO_GO / HOLD' R515_OWNER_GUIDED_OFFLINE_PREVIEW.html
           echo 'R5.15 + R5.14/R5.13/R5.12/R5.11/R5.10/R5.9/R5.8/R5.7/R5.6/R5.5/R5.4/R5.3/R5.2/R5.0/R4.9/R4.8: 26111/26111 isolated assertions PASS'
           echo 'R5.1 real disposable PostgreSQL17 QA passed in independent workflow #1.'
